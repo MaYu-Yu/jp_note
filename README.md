@@ -51,13 +51,18 @@ source venv/bin/activate
 
 # 安裝 Flask
 pip install Flask
+```
 
-2. 啟動應用程式
+### 2. 啟動應用程式
+
 在虛擬環境中，運行您的主程式：
 
-Bash
+```bash
 
 python app.py
+
+```
+
 應用程式成功啟動後，請打開瀏覽器，訪問 http://127.0.0.1:5000 即可開始使用。
 
 資料庫初始化： 首次運行時，app.py 會自動執行 init_db() 函數，創建所有必要的表格。
