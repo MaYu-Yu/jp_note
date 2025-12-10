@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新增文法</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">📘 新增日語文法</h1>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回總覽</a>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="term" class="form-label d-block">
+                            日語文法 (含接續形) 
+                            <span class="text-danger fw-bold">(請用 [ ] 標註核心文法，例如: [ということだ])</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="term" name="term" required placeholder="例如: V-辭書形 + [ということだ]">
+                            <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">快捷鍵</button>
+                            <ul class="dropdown-menu dropdown-menu-end" id="grammar-shortcuts">
+                                <li><h6 class="dropdown-header">接續與分隔</h6></li>
+                                <li><a class="dropdown-item" href="#" data-pos=" + "> + </a></li>
+                                <li><a class="dropdown-item" href="#" data-pos=" / "> / </a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">動詞接續形</h6></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-ます">V-ます</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-辭書形">V-辭書形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-普通形">V-普通形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-て">V-て</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-た">V-た</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-ない">V-ない</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">名詞/形容詞/核心標記</h6></li>
+                                <li><a class="dropdown-item" href="#" data-pos="N">N</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="いA">いA</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="なA">なA</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="explanation" class="form-label">解釋/中文意思</label>
+                            <textarea class="form-control" id="explanation" name="explanation" rows="2" placeholder="文法解釋..."></textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="example_sentence" class="form-label">例句</label>
+                            <textarea class="form-control" id="example_sentence" name="example_sentence" rows="2" placeholder="完整的日語例句..."></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-info w-100">儲存文法</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 文法接續快捷鍵功能 (直接追加到 '日語文法' 欄位)
+        document.getElementById('grammar-shortcuts').addEventListener('click', function(e) {
+            if (e.target.tagName === 'A') {
+                e.preventDefault();
+                const termInput = document.getElementById('term');
+                const selectedPos = e.target.getAttribute('data-pos');
+                
+                // 邏輯優化：確保輸入時有空格
+                let currentValue = termInput.value;
+                let newValue = selectedPos;
+                
+                // 如果是 V-xxx, N, いA, なA，且前面沒有空格，則添加空格
+                if (!selectedPos.includes(' ') && currentValue.length > 0 && 
+                    !currentValue.endsWith(' ') && !currentValue.endsWith('+') && !currentValue.endsWith('/')) {
+                    newValue = ' ' + selectedPos;
+                }
+                
+                termInput.value += newValue;
+                termInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>

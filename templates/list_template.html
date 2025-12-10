@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ '單字' if data_type == 'vocab' else '文法' }}清單</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .tts-button {
+            cursor: pointer;
+            color: #28a745;
+            margin-left: 5px;
+            font-size: 1.1em;
+        }
+
+        .tts-button:hover {
+            color: #1e7e34;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid mt-4">
+        <h1 class="mb-4">
+            {{ '📚 單字清單' if data_type == 'vocab' else '📑 文法清單' }} (第 {{ current_page }} / {{ total_pages }} 頁)
+        </h1>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回首頁</a>
+        <a href="{{ url_for('add_vocab') if data_type == 'vocab' else url_for('add_grammar') }}"
+            class="btn btn-success mb-3 ms-2">＋ 新增</a>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 20%;">日語/文法</th>
+                        {% if data_type == 'vocab' %}
+                        <th style="width: 10%;">詞性</th>
+                        {% endif %}
+                        <th style="width: 25%;">解釋/中文意思</th>
+                        <th style="width: 25%;">例句</th>
+                        <th style="width: 20%;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.term }}</strong>
+                            <span class="tts-button" onclick="speakText('{{ item.term | escape }}')">🔊</span>
+                        </td>
+                        {% if data_type == 'vocab' %}
+                        <td><span class="badge bg-secondary">{{ item.part_of_speech }}</span></td>
+                        {% endif %}
+                        <td>{{ item.explanation }}</td>
+                        <td>
+                            {{ item.example_sentence }}
+                            {% if item.example_sentence %}
+                            <span class="tts-button"
+                                onclick="speakText('{{ item.example_sentence | escape }}')">🔊</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('edit_item', data_type=data_type, item_id=item.id) }}"
+                                class="btn btn-primary btn-sm mb-1 w-100">✏️ 編輯</a>
+                            <form method="POST"
+                                action="{{ url_for('delete_item', data_type=data_type, item_id=item.id) }}"
+                                onsubmit="return confirm('確定要刪除這筆資料嗎？')">
+                                <button type="submit" class="btn btn-danger btn-sm w-100">❌ 刪除</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ 6 if data_type == 'vocab' else 5 }}" class="text-center">本頁沒有資料。</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {{ 'disabled' if current_page == 1 }}">
+                <a class="page-link"
+                    href="{{ url_for('list_page', data_type=data_type, page=current_page - 1) }}">上頁</a>
+            </li>
+            {% for page_num in range(1, total_pages + 1) %}
+            <li class="page-item {{ 'active' if page_num == current_page }}">
+                <a class="page-link" href="{{ url_for('list_page', data_type=data_type, page=page_num) }}">{{ page_num
+                    }}</a>
+            </li>
+            {% endfor %}
+            <li class="page-item {{ 'disabled' if current_page == total_pages or total_pages == 0 }}">
+                <a class="page-link"
+                    href="{{ url_for('list_page', data_type=data_type, page=current_page + 1) }}">下頁</a>
+            </li>
+        </ul>
+    </nav>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 發音功能 (與 home.html 相同，用於提取 [] 核心文法)
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                let textToSpeak = text.trim();
+                const match = textToSpeak.match(/\[([^\]]+)\]/);
+                if (match && match[1]) {
+                    textToSpeak = match[1].trim();
+                } else {
+                    textToSpeak = textToSpeak.split('+')[0].trim();
+                }
+
+                if (textToSpeak) {
+                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                    utterance.lang = 'ja-JP';
+                    window.speechSynthesis.cancel();
+                    window.speechSynthesis.speak(utterance);
+                }
+            } else {
+                alert("抱歉！您的瀏覽器不支援發音功能。");
+            }
+        }
+    </script>
+</body>
+
+</html>

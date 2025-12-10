@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>編輯 {{ '單字' if data_type == 'vocab' else '文法' }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">編輯 {{ '✏️ 單字' if data_type == 'vocab' else '📘 文法' }}</h1>
+        <a href="{{ url_for('list_page', data_type=data_type) }}" class="btn btn-secondary mb-3">← 返回清單</a>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="term" class="form-label">
+                            日語 ({{ '單字' if data_type == 'vocab' else '文法' }}) 
+                            {% if data_type == 'grammar' %}
+                            <span class="text-danger fw-bold">(請用 [ ] 標註核心文法)</span>
+                            {% endif %}
+                        </label>
+                        <input type="text" class="form-control" id="term" name="term" value="{{ item.term }}" required>
+                    </div>
+
+                    {% if data_type == 'vocab' %}
+                    <div class="mb-3">
+                        <label for="part_of_speech" class="form-label">詞性</label>
+                        <input type="text" class="form-control" id="part_of_speech" name="part_of_speech" value="{{ item.part_of_speech or '' }}">
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="explanation" class="form-label">解釋/中文意思</label>
+                            <textarea class="form-control" id="explanation" name="explanation" rows="3">{{ item.explanation or '' }}</textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="example_sentence" class="form-label">例句</label>
+                            <textarea class="form-control" id="example_sentence" name="example_sentence" rows="3">{{ item.example_sentence or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">💾 更新 {{ '單字' if data_type == 'vocab' else '文法' }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

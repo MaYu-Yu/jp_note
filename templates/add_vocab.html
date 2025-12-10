@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新增單字</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">✏️ 新增日語單字</h1>
+        <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回總覽</a>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="term" class="form-label">日語單字</label>
+                        <input type="text" class="form-control" id="term" name="term" required placeholder="例如: 食べる">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="part_of_speech" class="form-label d-block">詞性</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="part_of_speech" name="part_of_speech" placeholder="N, V, いA, ...">
+                            <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">快捷鍵</button>
+                            <ul class="dropdown-menu dropdown-menu-end" id="vocab-shortcuts">
+                                <li><a class="dropdown-item" href="#" data-pos="N">N (名詞)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V">V (動詞)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="いA">いA (い形容詞)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="なA">なA (な形容詞)</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="explanation" class="form-label">解釋/中文意思</label>
+                            <textarea class="form-control" id="explanation" name="explanation" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="example_sentence" class="form-label">例句</label>
+                            <textarea class="form-control" id="example_sentence" name="example_sentence" rows="2"></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">儲存單字</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 單字詞性快捷鍵功能 (追加 , 分隔)
+        document.getElementById('vocab-shortcuts').addEventListener('click', function(e) {
+            if (e.target.tagName === 'A') {
+                e.preventDefault();
+                const posInput = document.getElementById('part_of_speech');
+                const selectedPos = e.target.getAttribute('data-pos');
+                
+                if (posInput.value.trim() === '') {
+                    posInput.value = selectedPos;
+                } else {
+                    posInput.value += ', ' + selectedPos;
+                }
+                posInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>
