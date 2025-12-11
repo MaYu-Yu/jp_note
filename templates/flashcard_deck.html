@@ -7,7 +7,6 @@
     <title>單字卡學習</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* (CSS 樣式保持不變，略) */
         body {
             background-color: #f8f9fa;
         }
@@ -27,221 +26,295 @@
             max-width: 900px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             border-radius: 0.5rem;
+            min-height: 350px;
         }
 
+        /* 🚨 標題可點擊樣式 */
         .card-header-main {
-            padding: 2rem;
+            padding: 1.5rem 2rem;
             background-color: #d6eaff;
             border-bottom: 2px solid #007bff;
-            cursor: pointer;
             border-radius: 0.5rem 0.5rem 0 0;
-            transition: background-color 0.3s;
+            font-size: 1.2rem;
+            color: #007bff;
+            font-weight: bold;
+            cursor: pointer;
+            /* 讓標題具備點擊提示 */
         }
 
-        .card-header-main:hover {
-            background-color: #c1d9f4;
+        .card-body {
+            padding: 2rem;
+            text-align: left;
+        }
+
+        /* 🚨 第一行: 日語、詞性、語音 (最大) */
+        .term-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 1.5rem;
+            cursor: pointer;
+            /* 點擊此行可開合答案 */
         }
 
         .term-text {
-            font-size: clamp(2.5em, 8vw, 4em);
+            font-size: 3rem;
             font-weight: bold;
             color: #007bff;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .pos-badge {
+            margin-left: 15px;
+            font-size: 1.2rem;
+        }
+
+        .tts-button {
+            cursor: pointer;
+            color: #28a745;
+            margin-left: 10px;
+            font-size: 1.5em;
+            vertical-align: top;
+            transition: color 0.2s;
+        }
+
+        .tts-button:hover {
+            color: #1e7e34;
+        }
+
+        /* 🚨 第二行: 解釋/中文意思 */
+        .explanation-line {
+            margin-bottom: 1.5rem;
+        }
+
+        /* 🚨 第三行: 例句 */
+        .example-line {
             margin-bottom: 0;
-            display: inline;
-        }
-
-        #explanation-content {
-            padding: 1.5rem 2rem;
-            text-align: left;
-            transition: max-height 0.5s ease-out, opacity 0.3s ease-out;
-            max-height: 0;
-            overflow: hidden;
-            background-color: #fff;
-            border-radius: 0 0 0.5rem 0.5rem;
-            opacity: 0;
-            visibility: hidden;
-        }
-
-        #explanation-content.show {
-            max-height: 800px;
-            opacity: 1;
-            visibility: visible;
         }
 
         .content-label {
-            font-size: clamp(1.4em, 3.5vw, 1.8em);
-            font-weight: 500;
-            margin-top: 1rem;
-            margin-bottom: 0.3rem;
+            font-weight: bold;
+            color: #6c757d;
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem;
         }
 
         .content-text {
-            font-size: clamp(1.5em, 4vw, 2em);
-            line-height: 1.5;
-            overflow-wrap: break-word;
-            word-break: break-word;
-            padding: 0.5rem 0;
-        }
-
-        .core-term-style {
-            color: #d9534f;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            line-height: 1.6;
         }
 
         .explanation-style {
-            color: #5cb85c;
+            color: #343a40;
+            padding: 10px;
+            background-color: #e9f5ff;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
         }
 
         .example-style {
-            color: #0275d8;
-            font-style: italic;
-        }
-
-        .sentence-link {
-            text-decoration: none;
+            color: #343a40;
+            padding: 10px;
+            background-color: #f7f7f7;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
             cursor: pointer;
-            display: block;
-            padding: 0.5rem 0;
-
-            /* 移除 border 屬性 */
-            /* border: 1px dashed #ccc; */
-
-            border-radius: 5px;
-            margin-top: 5px;
         }
 
-        .sentence-link:hover {
-            background-color: #f0f0f0;
-        }
-
-        /* 移除點擊時的瀏覽器預設輪廓 */
-        .sentence-link:focus {
-            outline: none !important;
-        }
-
-        /* 新增樣式: 讓跳轉輸入框和按鈕並排 */
-        .jump-control {
+        /* 🚨 Issue 4 修正：佈局調整：卡片下方的按鈕群組 */
+        .control-row-main {
+            width: 95%;
+            /* 確保和卡片一樣寬 */
+            max-width: 900px;
             display: flex;
+            flex-direction: column;
+            /* 設為縱向排列的容器 */
             align-items: center;
-            gap: 10px;
-            margin-top: 20px;
+            /* 讓內容居中 */
+            gap: 15px;
+            /* 增加間距 */
         }
 
-        .jump-input {
+        /* 🚨 Issue 4 修正：Prev/Next 擴展到兩側 */
+        .control-row-nav {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            gap: 15px;
+            /* 按鈕間距 */
+        }
+
+        .control-row-nav .btn-lg {
+            flex-grow: 1;
+            max-width: 48%;
+            /* 讓兩個按鈕平均分配寬度 */
+        }
+
+        /* 🚨 Issue 4 修正：Reset/Autoplay/Replay 居中 */
+        .control-row-center {
+            display: flex;
+            flex-wrap: wrap; /* 允許換行 */
+            gap: 15px;
+            justify-content: center;
+            /* 核心：居中 */
+            align-items: center;
+        }
+
+        /* 讓 Select 框在小螢幕下保持合理寬度 */
+        .autoplay-controls .form-select {
             width: 100px;
-            text-align: center;
         }
     </style>
 </head>
 
 <body>
-    <div class="flashcard-container">
-        <a href="{{ url_for('flashcard_select') }}" class="btn btn-outline-secondary mb-4">← 退出單字卡</a>
+    <div class="container flashcard-container">
+        <div class="row w-100 justify-content-center">
+            <div class="col-12 col-lg-10">
+                <div class="card flashcard shadow">
+                    <div class="card-header card-header-main" id="flashcard-header" data-bs-toggle="collapse"
+                        data-bs-target="#explanation-content" aria-expanded="false" aria-controls="explanation-content">
+                        單字卡牌組：{{ filter_summary }}
+                    </div>
 
-        <h3 class="mb-2">
-            第 <span id="current-display">{{ current_index + 1 }}</span> / {{ total_count }} 筆
-        </h3>
-        <p class="text-muted mb-4 small">
-            篩選條件: {{ filter_summary }}
-        </p>
+                    <div class="card-body">
 
-        <div class="flashcard card" id="flashcard">
+                        <div class="text-center mb-4">
+                            <span id="current-index-display" class="h5 text-dark fw-bold me-3">
+                                載入中...
+                            </span>
+                        </div>
 
-            <div class="card-header-main" onclick="manualFlipAndSpeak()">
-                <p class="term-text">
-                    {{ card.term }}
-                    {% if card.part_of_speech %}
-                    <span class="badge bg-primary fs-5 align-text-bottom">{{ card.part_of_speech }}</span>
-                    {% endif %}
-                </p>
-                <small class="text-muted mt-2 d-block">點擊顯示/隱藏解釋及播放語音</small>
+                        <div class="term-line" id="term-line-clickable" data-bs-toggle="collapse"
+                            data-bs-target="#explanation-content" aria-expanded="false"
+                            aria-controls="explanation-content">
+                            <h2 class="term-text" id="card-term">
+                            </h2>
+                            <span id="card-pos" class="pos-badge badge bg-primary">
+                            </span>
+                            <span class="tts-button" id="term-tts-btn">🔊</span> 
+                            <span id="card-type-info" class="ms-auto text-secondary small"></span>
+                        </div>
+
+                        <div class="collapse" id="explanation-content">
+                            <div class="explanation-line">
+                                <p class="content-label">解釋/中文意思:</p>
+                                <p class="content-text explanation-style" id="card-explanation">
+                                </p>
+                            </div>
+
+                            <div class="example-line">
+                                <p class="content-label">例句 (點擊可翻譯):
+                                    <span class="tts-button" id="example-tts-btn">🔊</span>
+                                </p>
+                                <p class="content-text example-style" id="card-example" 
+                                    onclick="openGoogleTranslate(currentCardData.example_sentence)">
+                                </p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
             </div>
+        </div>
 
-            <div id="explanation-content" class="bg-white">
+        <div class="control-row-main mt-4">
 
-                <p class="content-label text-muted">日語/核心文法:</p>
-                <p class="content-text core-term-style" id="content-core-term"></p>
-                <hr>
+            <div class="control-row-nav">
+                <button id="prev-btn" class="btn btn-warning btn-lg" onclick="navigateCard(-1)">← 上一張</button>
 
-                <p class="content-label text-muted">解釋/中文意思:</p>
-                <p class="content-text explanation-style">{{ card.explanation }}</p>
-                <hr>
+                <button id="next-btn" class="btn btn-success btn-lg" onclick="handleNextClick()">下一張/看答案 →</button>
+            </div>
+            
+            <hr class="my-3 w-100">
 
-                <p class="content-label text-muted">例句 (點擊翻譯):</p>
-                <a href="#" onclick="return openGoogleTranslate('{{ card.example_sentence | urlencode }}')"
-                    class="sentence-link" target="_blank">
-                    <p class="content-text example-style mb-0">{{ card.example_sentence }}</p>
-                </a>
+            <div class="control-row-center">
+                <a href="{{ url_for('flashcard_select') }}" class="btn btn-secondary me-3">⚙️ 重設牌組</a>
+
+                <div class="autoplay-controls d-flex flex-nowrap align-items-center">
+                    <select id="interval-select" class="form-select w-auto me-2">
+                        <option value="1000">1 秒</option>
+                        <option value="2000">2 秒</option>
+                        <option value="3000">3 秒</option>
+                        <option value="4000">4 秒</option>
+                        <option value="5000" selected>5 秒</option>
+                        <option value="6000">6 秒</option>
+                        <option value="7000">7 秒</option>
+                        <option value="8000">8 秒</option>
+                        <option value="9000">9 秒</option>
+                        <option value="10000">10 秒</option>
+                    </select>
+                    <button id="play-pause-btn" class="btn btn-primary" onclick="toggleAutoPlay()">▶️ 自動播放</button>
+                </div>
+                
+                <button id="replay-btn" class="btn btn-info" onclick="speakFullAnswerWithCancel()">🔊 重唸答案</button>
 
             </div>
 
         </div>
 
-        <div class="w-100 mt-5 d-flex justify-content-center flex-column align-items-center">
-
-            <div class="d-flex gap-3 mb-3">
-                <button class="btn btn-warning btn-lg" onclick="navigateCard(-1)">⬅️ 上一個</button>
-                <button class="btn btn-success btn-lg" id="play-pause-btn" onclick="toggleAutoPlay()">▶️ 自動播放</button>
-                <button class="btn btn-warning btn-lg" onclick="navigateCard(1)">下一個 ➡️</button>
-            </div>
-
-            <div class="d-flex align-items-center gap-3">
-                <label for="interval-select" class="form-label mb-0">間隔 (秒):</label>
-                <select class="form-select w-auto" id="interval-select">
-                    <option value="1000">1</option>
-                    <option value="2000">2</option>
-                    <option value="3000">3</option>
-                    <option value="4000">4</option>
-                    <option value="5000" selected>5</option>
-                    <option value="6000">6</option>
-                    <option value="7000">7</option>
-                    <option value="8000">8</option>
-                </select>
-                <button class="btn btn-info" onclick="speakCurrentCardManually()">🔊 重唸</button>
-            </div>
-
-            <hr class="w-75 my-3">
-
-            <div class="jump-control">
-                <label for="jump-to-input" class="form-label mb-0">跳轉至筆數:</label>
-                <input type="number" id="jump-to-input" class="form-control jump-input" min="1" max="{{ total_count }}"
-                    value="{{ current_index + 1 }}" aria-label="跳轉筆數">
-                <button class="btn btn-primary" onclick="jumpToCard()">GO</button>
-                <small class="text-muted">(1 - {{ total_count }})</small>
-            </div>
-
-        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 📌 修正：確保 JS 變數名稱與 app.py 傳入的名稱一致
-        const cardData = {{ card | tojson | safe }};
-        const currentIndex = {{ current_index }};
-        const totalCount = {{ total_count }};
+        // =================================================================
+        // 核心變數和元素定義 (保持不變)
+        // =================================================================
+        const BATCH_SIZE = 50;
+        let current_index = {{ current_index }};
+        const total_count = {{ total_count }};
+        let currentCardData = null; // 從伺服器載入的當前卡片數據
 
-        const SESSION_KEY = 'flashcard_autoplay_playing';
+        let cardCache = [];
+        let currentBatchStart = 0;
+
+        // 元素選擇器
+        const indexDisplay = document.getElementById('current-index-display');
+        const termElement = document.getElementById('card-term');
+        const posElement = document.getElementById('card-pos');
+        const explanationElement = document.getElementById('card-explanation');
+        const exampleElement = document.getElementById('card-example');
+        const contentCollapse = document.getElementById('explanation-content');
+        const typeInfoElement = document.getElementById('card-type-info');
+        const termLine = document.getElementById('term-line-clickable'); // 整個可點擊區域
+        const headerElement = document.getElementById('flashcard-header'); // 標頭元素
+        const nextButton = document.getElementById('next-btn');
+
+        const intervalSelect = document.getElementById('interval-select');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+
+        // 自動播放相關變數
+        const SESSION_KEY = 'flashcard_autoplay_enabled';
         const INTERVAL_KEY = 'flashcard_autoplay_interval';
         let autoPlayTimeout = null;
-        const contentElement = document.getElementById('explanation-content');
-        const intervalSelect = document.getElementById('interval-select');
+        let isSpeaking = false;
 
-        const MAX_TTS_TIMEOUT = 15000;
 
-        // ------------------------------------------------------------------
-        // ** 輔助函數和語音初始化 (以下 JS 程式碼保持不變) **
-        // ------------------------------------------------------------------
+        // =================================================================
+        // 語音合成 (TTS) 邏輯
+        // =================================================================
+        /**
+         * 執行語音播放。
+         * @param {string} text 要播放的文本。
+         * @param {string} lang 語言代碼 (e.g., 'ja-JP', 'zh-TW')。
+         * @param {function} callback 播放完成後的回調函數。
+         */
+        function speakText(text, lang, callback = () => {}) {
+            if (!('speechSynthesis' in window) || !text || text.trim() === '') {
+                callback();
+                return;
+            }
 
-        function extractCoreTerm(text) {
-            if (!text) return '';
-            const match = text.match(/\[([^\]]+)\]/);
-            return match ? match[1].trim() : text.trim();
-        }
+            // 🚨 Issue 3 修正: 停止所有當前語音
+            window.speechSynthesis.cancel(); 
 
-        function createUtterance(text, lang = 'ja-JP') {
-            if (!text) return null;
             let textToSpeak = text.trim();
 
             if (lang === 'ja-JP') {
+                // 處理日語: 提取 [ ] 內的核心文法或 + 號前面的部分
                 const match = textToSpeak.match(/\[([^\]]+)\]/);
                 if (match && match[1]) {
                     textToSpeak = match[1].trim();
@@ -249,246 +322,285 @@
                     textToSpeak = textToSpeak.split('+')[0].trim();
                 }
             }
-
+            
             if (textToSpeak) {
                 const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
-                return utterance;
+                utterance.rate = 1.0;
+                
+                // 語音播放結束
+                utterance.onend = () => {
+                    isSpeaking = false;
+                    callback();
+                };
+
+                // 語音播放錯誤
+                utterance.onerror = (e) => {
+                    console.error('TTS Error:', e);
+                    isSpeaking = false;
+                    callback();
+                };
+
+                isSpeaking = true;
+                window.speechSynthesis.speak(utterance);
+            } else {
+                callback();
             }
-            return null;
         }
 
-        function speakCurrentCard(onFinishCallback = null, includeChinese = true) {
-            window.speechSynthesis.cancel();
-
-            const utterances = [];
-            utterances.push(createUtterance(cardData.term));
-
-            if (includeChinese && cardData.explanation) {
-                utterances.push(createUtterance(cardData.explanation, 'zh-TW'));
-            }
-
-            utterances.push(createUtterance(cardData.example_sentence));
-
-            const finalUtterances = utterances.filter(u => u !== null);
-
-            if (finalUtterances.length === 0) {
-                if (onFinishCallback) onFinishCallback();
+        /**
+         * 🚨 核心TTS函數：依序播放日語 Term, 中文解釋, 日語例句
+         * @param {function} callback - 全部播放完畢後執行的回調函數
+         */
+        function speakFullAnswer(callback = () => {}) {
+            if (!currentCardData || currentCardData.type === 'error') {
+                callback();
                 return;
             }
+            
+            // 🚨 修正 Issue 3: 確保開始播放新序列前，先停止所有語音
+            window.speechSynthesis.cancel(); 
 
-            let ttsFallback = null;
-
-            if (onFinishCallback) {
-                ttsFallback = setTimeout(() => {
-                    console.warn("TTS fallback executed: Forcing onFinishCallback.");
-                    window.speechSynthesis.cancel();
-                    onFinishCallback();
-                }, MAX_TTS_TIMEOUT);
+            // 1. 播放日語 Term
+            speakText(currentCardData.term, 'ja-JP', () => {
+                // 2. 播放中文解釋
+                const explanationText = explanationElement.textContent;
+                // 🚨 修正: 為了避免 speakText 內部的 cancel 影響到下一個 speak，
+                // 這裡我們直接使用一個不帶 cancel 的內部函數來實現串聯。
+                
+                // 為了使用已有的 speakText 函數（它包含 cancel），我們必須使用遞迴，
+                // 但因為 navigateCard 會重新載入頁面，我們只需確保這裡語音是連續的，
+                // 所以我們用連續的回調。speakText 內的 cancel 已經足夠。
+                
+                speakText(explanationText, 'zh-TW', () => {
+                    // 3. 播放日語例句
+                    const exampleText = exampleElement.textContent;
+                    speakText(exampleText, 'ja-JP', () => {
+                        // 4. 全部完成
+                        callback();
+                    });
+                });
+            });
+        }
+        
+        /**
+         * 🚨 供「重唸答案」按鈕使用的函數，確保先停止後播放。
+         */
+        function speakFullAnswerWithCancel() {
+            stopAutoPlayLoop(false); // 停止自動播放，但不改變按鈕狀態
+            window.speechSynthesis.cancel(); // 🚨 確保停止當前所有語音
+            // 確保答案是展開的
+            if (!contentCollapse.classList.contains('show')) {
+                // 使用 Bootstrap JS 來觸發開合，確保樣式正確
+                new bootstrap.Collapse(contentCollapse, { toggle: true });
             }
-
-            function queueUtterances(index) {
-                if (index >= finalUtterances.length) {
-                    if (ttsFallback) clearTimeout(ttsFallback);
-                    if (onFinishCallback) onFinishCallback();
-                    return;
-                }
-
-                const currentUtterance = finalUtterances[index];
-
-                currentUtterance.onend = () => {
-                    queueUtterances(index + 1);
-                };
-
-                currentUtterance.onerror = (event) => {
-                    console.error("TTS Error:", event.error);
-                    queueUtterances(index + 1);
-                };
-
-                window.speechSynthesis.speak(currentUtterance);
-            }
-
-            queueUtterances(0);
+            // 延遲播放，確保開合動畫完成
+            setTimeout(() => {
+                speakFullAnswer(() => { /* do nothing */ });
+            }, 500);
         }
 
-        function stopAutoPlayLoop(updateButton = true) {
-            if (autoPlayTimeout) {
-                clearTimeout(autoPlayTimeout);
-                autoPlayTimeout = null;
-            }
-            window.speechSynthesis.cancel();
-            sessionStorage.removeItem(SESSION_KEY);
-            sessionStorage.removeItem(INTERVAL_KEY);
-
-            if (intervalSelect) {
-                intervalSelect.disabled = false;
-            }
-
-            if (updateButton) {
-                document.getElementById('play-pause-btn').innerHTML = '▶️ 自動播放';
-            }
-            console.log("Auto-play loop stopped by user action.");
-        }
-
-
-        // ------------------------------------------------------------------
-        // ** DOMContentLoaded 處理 (頁面載入時) **
-        // ------------------------------------------------------------------
-
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('content-core-term').textContent = extractCoreTerm(cardData.term);
-
-            const savedInterval = sessionStorage.getItem(INTERVAL_KEY);
-            if (savedInterval) {
-                intervalSelect.value = savedInterval;
-            }
-
-            if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-                const btn = document.getElementById('play-pause-btn');
-                btn.innerHTML = '⏸️ 暫停';
-                autoPlayStep();
-
-                if (intervalSelect) {
-                    intervalSelect.disabled = true;
-                }
-            }
-        });
-
-        // --- 翻譯連結函數 ---
-
-        function openGoogleTranslate(encodedText) {
-            stopAutoPlayLoop(false);
-
+        // =================================================================
+        // Google 翻譯連結功能
+        // =================================================================
+        function openGoogleTranslate(text) {
+            stopAutoPlayLoop(false); // 停止自動播放
+            window.speechSynthesis.cancel(); // 🚨 翻譯前取消語音
+            const encodedText = encodeURIComponent(text);
             const url = `https://translate.google.com/?sl=ja&tl=zh-TW&text=${encodedText}&op=translate`;
             window.open(url, '_blank');
             return false;
         }
 
-        // --- 導航與手動操作函數 ---
-
-        /**
-         * 將當前索引儲存到後端 Session 中，作為進度記憶點。
-         * @param {number} index - 要儲存的當前單字卡索引。
-         */
-        async function updateIndexMemory(index) {
+        // =================================================================
+        // AJAX 批次載入和緩存管理 (保持不變)
+        // =================================================================
+        async function fetchAndCacheBatch(startIndex) {
+            if (startIndex >= total_count) {
+                cardCache = [];
+                currentBatchStart = total_count;
+                return;
+            }
+            termElement.textContent = '⏳ 載入下一批卡片...';
+            posElement.style.display = 'none';
+            typeInfoElement.textContent = '';
+            explanationElement.textContent = '';
+            exampleElement.textContent = '';
+            contentCollapse.classList.remove('show');
+            nextButton.textContent = '下一張/看答案 →'; // 重置按鈕文字
             try {
-                // 🚨 修正點：url_for 不再需要參數，且固定為 /api/update_index
-                const response = await fetch("{{ url_for('update_flashcard_index') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    // 將 index 放在 request body 中傳遞
-                    body: JSON.stringify({ index: index })
-                });
-
-                if (!response.ok) {
-                    console.error('API 錯誤:', response.statusText);
-                    return false;
-                }
-
+                const response = await fetch(`/api/get_flashcard/${startIndex}`);
                 const result = await response.json();
-                if (!result.success) {
-                    console.error('更新索引失敗:', result.message);
+                if (result.success) {
+                    cardCache = result.cards;
+                    currentBatchStart = startIndex;
+                } else {
+                    cardCache = [];
+                    currentBatchStart = startIndex;
                 }
-                return result.success;
-
             } catch (error) {
-                console.error('更新索引時發生網路錯誤:', error);
-                return false;
+                cardCache = [];
+                currentBatchStart = startIndex;
             }
         }
 
         /**
-         * 處理前後導航或自動導航
-         * @param {number} direction - 1 (下一個) 或 -1 (上一個)
+         * 步驟 2: 渲染卡片內容到 HTML
+         * @param {object} card - 卡片數據
+         * @param {boolean} autoSpeak - 是否自動播放 term 語音 (開啟卡片即播放)
          */
-        async function navigateCard(direction) {
+        function renderCard(card, autoSpeak = false) {
+            currentCardData = card;
+            
+            // 1. 更新索引顯示
+            indexDisplay.textContent = `第 ${current_index + 1} / ${total_count} 筆`;
 
-            if (sessionStorage.getItem(SESSION_KEY) !== 'true') {
-                stopAutoPlayLoop();
-            } else {
-                if (autoPlayTimeout) clearTimeout(autoPlayTimeout);
-                window.speechSynthesis.cancel();
+            // 2. 渲染核心內容
+            termElement.textContent = card.term || 'N/A';
+            posElement.textContent = card.part_of_speech || '';
+            posElement.style.display = card.part_of_speech ? 'inline-block' : 'none';
+
+            explanationElement.innerHTML = card.explanation ? card.explanation.replace(/\n/g, '<br>') : 'N/A';
+            exampleElement.innerHTML = card.example_sentence ? card.example_sentence.replace(/\n/g, '<br>') : 'N/A';
+            
+            typeInfoElement.textContent = card.type === 'vocab' ? '單字' : (card.type === 'grammar' ? '文法' : '');
+            
+            // 3. 重置答案顯示狀態
+            contentCollapse.classList.remove('show');
+            nextButton.textContent = '下一張/看答案 →';
+            
+            // 4. 每次載入新卡片時自動播放日語發音 (只讀 Term)
+            if (autoSpeak) {
+                // 這裡只讀 Term，因為 navigateCard 已經是跳到下一張了，通常不讀答案
+                speakText(card.term, 'ja-JP'); 
+            }
+        }
+
+        /**
+         * 步驟 3: 導航至下一張/上一張卡片，並更新後端索引
+         */
+        async function navigateCard(step) {
+            if (total_count === 0) return;
+            // 🚨 Issue 3 修正: 導航前停止所有語音
+            window.speechSynthesis.cancel(); 
+            
+            // 如果在自動播放模式下，必須先停止計時器
+            if (sessionStorage.getItem(SESSION_KEY) === 'true' && autoPlayTimeout) {
+                clearTimeout(autoPlayTimeout);
             }
 
+            let newIndex = current_index + step;
+            let wrapped = false;
 
-            const isNext = direction === 1;
-            const isContentHidden = !contentElement.classList.contains('show');
+            if (newIndex >= total_count) {
+                newIndex = 0;
+                wrapped = true;
+            } else if (newIndex < 0) {
+                newIndex = total_count - 1;
+                wrapped = true;
+            }
 
-            if (isNext && isContentHidden && sessionStorage.getItem(SESSION_KEY) !== 'true') {
-                contentElement.classList.add('show');
-                speakCurrentCard(() => { }, true);
+            current_index = newIndex;
+
+            // 1. 檢查是否需要載入新的批次
+            const cacheIndex = current_index - currentBatchStart;
+            const requiresNewBatch = cacheIndex < 0 || cacheIndex >= cardCache.length;
+            
+            if (requiresNewBatch) {
+                // 這裡會重新載入，並可能觸發新的頁面刷新邏輯，但為了不破壞批次邏輯，我們讓它發送 AJAX
+                const newBatchStart = Math.floor(current_index / BATCH_SIZE) * BATCH_SIZE;
+                await fetchAndCacheBatch(newBatchStart);
+            }
+
+            // 2. 從緩存中取出卡片
+            const card = cardCache[current_index - currentBatchStart];
+            if (card) {
+                // 渲染新卡片，並自動播放聲音 (true)
+                renderCard(card, true);
+            } else {
+                renderCard({ term: '載入錯誤', part_of_speech: '', explanation: '無法從緩存中讀取卡片。', example_sentence: '', type: 'error' });
                 return;
             }
 
-            let nextIndex = currentIndex + direction;
+            // 3. 呼叫後端 API 更新進度
+            await fetch('{{ url_for("update_flashcard_index") }}', { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ index: current_index }) 
+            });
 
-            if (nextIndex >= totalCount) {
-                nextIndex = 0;
-            } else if (nextIndex < 0) {
-                nextIndex = totalCount - 1;
+            if (wrapped) {
+                alert('恭喜！已經完成一輪學習。牌組將從第一張開始。');
             }
-
-            // ** 導航至新索引 **
-            await navigateToNewIndex(nextIndex);
-        }
-
-        /**
-         * 處理跳轉至指定筆數
-         */
-        async function jumpToCard() {
-            // **使用者行為：強制停止自動播放**
-            stopAutoPlayLoop();
-
-            const jumpInput = document.getElementById('jump-to-input');
-            const target = parseInt(jumpInput.value);
-
-            if (isNaN(target) || target < 1 || target > totalCount) {
-                alert(`請輸入一個有效的筆數 (1 到 ${totalCount})。`);
-                jumpInput.value = currentIndex + 1; // 重置回當前筆數
-                return;
+            
+            // 4. 🚨 修正 Issue 1: 處理自動播放狀態
+            if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+                // 如果是自動播放模式，我們需要重新啟動計時器 (因為 navigateCard 已經停止了它)
+                startAutoplaySequence();
             }
-
-            // 將筆數轉換為程式碼中的 0-based 索引
-            const targetIndex = target - 1;
-
-            // ** 跳轉至新索引 **
-            await navigateToNewIndex(targetIndex);
         }
+        
+        // =================================================================
+        // 🚨 核心邏輯: 處理下一張按鈕點擊 (先看答案，再跳下一張)
+        // =================================================================
+        async function handleNextClick() {
+            if (!currentCardData || currentCardData.type === 'error') return;
+            
+            // 1. 檢查答案是否已展開 (判斷是看答案還是下一張)
+            const isAnswerShown = contentCollapse.classList.contains('show');
 
-        /**
-         * 通用跳轉函式：更新索引並重新載入頁面
-         * @param {number} newIndex - 新的 0-based 索引
-         */
-        async function navigateToNewIndex(newIndex) {
-            // 1. 更新後端 Session 中的索引
-            await updateIndexMemory(newIndex);
-            // 2. 重新載入頁面，Flask 會從 Session 中讀取新索引
-            window.location.href = `{{ url_for('flashcard_deck', action='resume') }}`;
-        }
-
-        function manualFlipAndSpeak() {
-            stopAutoPlayLoop();
-
-            if (contentElement.classList.contains('show')) {
+            if (!isAnswerShown) {
+                // 動作 1: 展開答案並播放語音
+                stopAutoPlayLoop(false); // 停止自動播放，但不改變按鈕文字
                 window.speechSynthesis.cancel();
-                contentElement.classList.remove('show');
+                
+                // 使用 Bootstrap JS 來觸發開合，確保樣式正確
+                new bootstrap.Collapse(contentCollapse, { toggle: true });
+                nextButton.textContent = '下一張 →'; // 變更按鈕文字
+
+                // 延遲播放，確保開合動畫完成
+                setTimeout(() => {
+                    speakFullAnswer(() => { /* 語音播放完畢 */ }); 
+                }, 500);
+
+
             } else {
-                contentElement.classList.add('show');
-                speakCurrentCard(() => { }, true);
+                // 動作 2: 導航到下一張
+                await navigateCard(1); 
             }
         }
 
-        function speakCurrentCardManually() {
-            stopAutoPlayLoop();
-            contentElement.classList.add('show');
-            speakCurrentCard(() => { }, true);
+
+        // =================================================================
+        // 自動播放控制
+        // =================================================================
+        
+        /**
+         * 🚨 修正 Issue 1: 自動播放啟動的流程
+         */
+        function startAutoplaySequence() {
+            if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
+            
+            // 1. 展開卡片
+            if (!contentCollapse.classList.contains('show')) {
+                // 使用 Bootstrap JS 來觸發開合，確保樣式正確
+                new bootstrap.Collapse(contentCollapse, { toggle: true });
+            }
+
+            nextButton.textContent = '下一張 →'; // 確保按鈕文字變更
+
+            // 2. 播放語音，完成後進入計時器
+            // 延遲播放，確保開合動畫完成
+            setTimeout(() => {
+                speakFullAnswer(() => {
+                    autoPlayStep();
+                });
+            }, 500); 
         }
 
-
-        // --- 自動播放控制 ---
-
+        /**
+         * 處理自動播放的計時和下一張導航。
+         */
         function autoPlayStep() {
             if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
             if (autoPlayTimeout) clearTimeout(autoPlayTimeout);
@@ -496,23 +608,34 @@
             const intervalString = sessionStorage.getItem(INTERVAL_KEY);
             const interval = intervalString ? parseInt(intervalString) : 5000;
 
-            setTimeout(() => {
+            // 設置計時器，等待 interval 時間後跳轉到下一張
+            autoPlayTimeout = setTimeout(async () => {
+                window.speechSynthesis.cancel();
+                // 導航至下一張 (這會觸發 navigateCard，然後 navigateCard 會重新 call startAutoplaySequence)
+                await navigateCard(1); 
+            }, interval);
+        }
 
-                if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
-                contentElement.classList.add('show');
+        /**
+         * 停止自動播放循環和語音。
+         * @param {boolean} updateButton - 是否更新按鈕文字和啟用間隔選擇器。
+         */
+        function stopAutoPlayLoop(updateButton = true) {
+            if (autoPlayTimeout) {
+                clearTimeout(autoPlayTimeout);
+                autoPlayTimeout = null;
+            }
+            // 🚨 修正 Issue 3: 確保停止所有語音
+            window.speechSynthesis.cancel(); 
+            sessionStorage.removeItem(SESSION_KEY);
 
-                speakCurrentCard(() => {
+            if (intervalSelect) {
+                intervalSelect.disabled = false;
+            }
 
-                    if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
-
-                    autoPlayTimeout = setTimeout(async () => {
-                        window.speechSynthesis.cancel();
-                        contentElement.classList.remove('show');
-                        await navigateCard(1);
-                    }, interval);
-                }, true);
-
-            }, 500);
+            if (updateButton) {
+                playPauseBtn.innerHTML = '▶️ 自動播放';
+            }
         }
 
         function toggleAutoPlay() {
@@ -524,6 +647,7 @@
                 btn.innerHTML = '▶️ 自動播放';
             } else {
                 // 開始邏輯
+                window.speechSynthesis.cancel(); // 🚨 開始前先停止所有語音
 
                 const selectedInterval = intervalSelect.value;
                 sessionStorage.setItem(INTERVAL_KEY, selectedInterval);
@@ -533,13 +657,97 @@
 
                 intervalSelect.disabled = true;
 
-                if (contentElement.classList.contains('show')) {
-                    contentElement.classList.remove('show');
-                }
-                autoPlayStep();
+                // 🚨 修正 Issue 1: 立即啟動自動播放流程
+                startAutoplaySequence();
             }
         }
 
+
+        // =================================================================
+        // 事件監聽器與初始化
+        // =================================================================
+
+        // 🚨 1. 點擊 Term Line 或 Header 時切換答案的顯示狀態 (手動開合)
+        const manualToggleListener = (e) => {
+            // 避免點擊語音按鈕或翻譯例句時觸發開合
+            if (e.target.classList.contains('tts-button') || e.target.id === 'card-example') {
+                return;
+            }
+            
+            stopAutoPlayLoop(false); // 停止自動播放，但不更新按鈕狀態
+            window.speechSynthesis.cancel(); // 🚨 停止語音
+
+            // 檢查答案是否即將展開 (即目前是收合狀態)
+            const willBeShown = !contentCollapse.classList.contains('show');
+            if (willBeShown && currentCardData) {
+                nextButton.textContent = '下一張 →'; // 變更按鈕文字
+                
+                // 延遲播放，確保開合動畫完成
+                setTimeout(() => {
+                    speakFullAnswer(() => { /* 手動翻牌不需回調 */ });
+                }, 500);
+            } else {
+                nextButton.textContent = '下一張/看答案 →';
+            }
+        };
+        
+        // 綁定點擊事件
+        termLine.addEventListener('click', manualToggleListener);
+        headerElement.addEventListener('click', manualToggleListener);
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 1. 初始載入第一批數據
+            if (cardCache.length === 0 && total_count > 0) {
+                await fetchAndCacheBatch(currentBatchStart);
+            }
+            
+            // 2. 渲染第一張卡片
+            const initialCard = cardCache[current_index - currentBatchStart];
+            if (initialCard) {
+                renderCard(initialCard, false); // 初始載入不自動播放 term 語音
+
+                // 3. 綁定個別語音按鈕
+                document.getElementById('term-tts-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    stopAutoPlayLoop(false);
+                    if (currentCardData && currentCardData.term) {
+                        speakText(currentCardData.term, 'ja-JP');
+                    }
+                });
+
+                document.getElementById('example-tts-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    stopAutoPlayLoop(false);
+                    if (currentCardData && currentCardData.example_sentence) {
+                        speakText(currentCardData.example_sentence, 'ja-JP');
+                    }
+                });
+
+                // 4. 初始化自動播放狀態
+                const storedInterval = sessionStorage.getItem(INTERVAL_KEY);
+                if (storedInterval) {
+                    intervalSelect.value = storedInterval;
+                }
+
+                if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+                    playPauseBtn.innerHTML = '⏸️ 暫停';
+                    intervalSelect.disabled = true;
+                    
+                    // 🚨 修正 Issue 1: 頁面載入時(切到下一張時) 立即開始播放
+                    startAutoplaySequence(); 
+                } else {
+                    playPauseBtn.innerHTML = '▶️ 自動播放';
+                    intervalSelect.disabled = false;
+                    // 手動模式下，初始狀態為收合
+                    contentCollapse.classList.remove('show');
+                }
+
+
+            } else {
+                termElement.textContent = '清單為空，請回設定頁重新載入。';
+            }
+        });
     </script>
 </body>
 
