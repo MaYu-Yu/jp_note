@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ '單字' if data_type == 'vocab' else '文法' }}清單{% if current_category %} - {{ current_category }}{% endif %}</title>
+    <title>{{ '單字' if data_type == 'vocab' else '文法' }}清單{% if current_category %} - {{ current_category }}{% endif %}
+    </title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .tts-button {
@@ -24,31 +25,66 @@
 <body>
     <div class="container-fluid mt-4">
         <h1 class="mb-4">
-            {{ '📚 單字清單' if data_type == 'vocab' else '📑 文法清單' }} 
+            {{ '📚 單字清單' if data_type == 'vocab' else '📑 文法清單' }}
             {% if current_category %}
-                <span class="badge bg-warning text-dark">分類: {{ current_category }}</span>
+            <span class="badge bg-warning text-dark">分類: {{ current_category }}</span>
             {% endif %}
             (第 {{ current_page }} / {{ total_pages }} 頁)
         </h1>
-        
+
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}" role="alert">{{ message | safe }}</div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}" role="alert">{{ message | safe }}</div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
 
         <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回首頁</a>
         <a href="{{ url_for('add_vocab') if data_type == 'vocab' else url_for('add_grammar') }}"
             class="btn btn-success mb-3 ms-2">＋ 新增</a>
+        <div class="d-flex align-items-center mb-3">
+            <span class="me-2">排序依據:</span>
+            <select class="form-select form-select-sm w-auto me-2" id="sort-by-select">
+                <option value="id" {% if sort_by=='id' %}selected{% endif %}>ID</option>
+                <option value="term" {% if sort_by=='term' %}selected{% endif %}>日語內容</option>
+                {% if data_type == 'vocab' %}
+                <option value="part_of_speech" {% if sort_by=='part_of_speech' %}selected{% endif %}>詞性</option>
+                {% endif %}
+                <option value="created_at" {% if sort_by=='created_at' %}selected{% endif %}>建立時間</option>
+                <option value="updated_at" {% if sort_by=='updated_at' %}selected{% endif %}>修改時間</option>
+            </select>
 
+            <select class="form-select form-select-sm w-auto me-2" id="sort-order-select">
+                <option value="DESC" {% if sort_order=='DESC' %}selected{% endif %}>降序 (新→舊)</option>
+                <option value="ASC" {% if sort_order=='ASC' %}selected{% endif %}>升序 (舊→新)</option>
+            </select>
+
+            <button class="btn btn-sm btn-outline-secondary" onclick="applySort()">應用排序</button>
+        </div>
+
+        <script>
+            function applySort() {
+                const sortBy = document.getElementById('sort-by-select').value;
+                const sortOrder = document.getElementById('sort-order-select').value;
+
+                // 獲取當前 URL，並替換/新增 sort_by 和 sort_order 參數
+                const url = new URL(window.location.href);
+                url.searchParams.set('sort_by', sortBy);
+                url.searchParams.set('sort_order', sortOrder);
+
+                // 重置分頁到第 1 頁，因為排序改變了
+                url.searchParams.set('page', '1');
+
+                window.location.href = url.toString();
+            }
+        </script>
         {% if current_category %}
-        <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category) }}" 
+        <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category) }}"
             class="btn btn-{{ 'primary' if data_type == 'vocab' else 'outline-primary' }} mb-3 ms-2">
             單字 ({{ current_category }})
         </a>
-        <a href="{{ url_for('list_page', data_type='grammar', page=1, category=current_category) }}" 
+        <a href="{{ url_for('list_page', data_type='grammar', page=1, category=current_category) }}"
             class="btn btn-{{ 'primary' if data_type == 'grammar' else 'outline-primary' }} mb-3">
             文法 ({{ current_category }})
         </a>
@@ -71,19 +107,19 @@
                         <td>
                             <strong>{{ item.term }}</strong>
                             {% if data_type == 'vocab' and item.part_of_speech %}
-                                <span class="badge bg-secondary ms-2">{{ item.part_of_speech }}</span>
+                            <span class="badge bg-secondary ms-2">{{ item.part_of_speech }}</span>
                             {% endif %}
                             {% if item.categories %}
-                                {% for cat in item.categories.split(',') %}
-                                    <span class="badge bg-info ms-1" style="font-size: 0.7em;">{{ cat.strip() }}</span>
-                                {% endfor %}
+                            {% for cat in item.categories.split(',') %}
+                            <span class="badge bg-info ms-1" style="font-size: 0.7em;">{{ cat.strip() }}</span>
+                            {% endfor %}
                             {% endif %}
-                            
+
                             <span class="tts-button" onclick="speakText('{{ item.term | escape }}')">🔊</span>
                         </td>
-                        
+
                         <td>{{ item.explanation }}</td>
-                        
+
                         <td>
                             {{ item.example_sentence }}
                             {% if item.example_sentence %}
@@ -91,7 +127,7 @@
                                 onclick="speakText('{{ item.example_sentence | escape }}')">🔊</span>
                             {% endif %}
                         </td>
-                        
+
                         <td>
                             <a href="{{ url_for('edit_item', data_type=data_type, item_id=item.id) }}"
                                 class="btn btn-primary btn-sm mb-1 w-100">✏️ 編輯</a>
@@ -111,7 +147,6 @@
             </table>
         </div>
     </div>
-
     <nav aria-label="Page navigation" class="mt-4">
         <ul class="pagination justify-content-center">
             <li class="page-item {{ 'disabled' if current_page == 1 }}">
@@ -120,7 +155,9 @@
             </li>
             {% for page_num in page_range %}
             <li class="page-item {{ 'active' if page_num == current_page }}">
-                <a class="page-link" href="{{ url_for('list_page', data_type=data_type, page=page_num, category=current_category) }}">{{ page_num
+                <a class="page-link"
+                    href="{{ url_for('list_page', data_type=data_type, page=page_num, category=current_category) }}">{{
+                    page_num
                     }}</a>
             </li>
             {% endfor %}
@@ -139,7 +176,7 @@
         function speakText(text) {
             if ('speechSynthesis' in window) {
                 let textToSpeak = text.trim();
-                
+
                 // 處理文法: 提取 [ ] 內的核心文法
                 const match = textToSpeak.match(/\[([^\]]+)\]/);
                 if (match && match[1]) {

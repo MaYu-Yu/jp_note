@@ -61,15 +61,18 @@
                 <div class="card h-100 shadow-sm border-info category-card">
                     
                     <button class="btn btn-danger delete-category-btn delete-btn-overlay" 
-                            data-category="{{ category }}" 
+                            data-category="{{ category.name }}" 
                             title="從所有記錄中移除此分類">
                         <i class="fas fa-trash"></i>
                     </button>
                     
-                    <a href="{{ url_for('list_page', data_type='vocab', category=category) }}" class="category-link d-block h-100">
+                    <a href="{{ url_for('list_page', data_type='vocab', category=category.name) }}" class="category-link d-block h-100">
                         <div class="card-body">
-                            <h5 class="card-title text-info">{{ category }}</h5>
-                            <p class="card-text text-muted small">點擊查看</p>
+                            <h5 class="card-title text-info">{{ category.name }}</h5>
+                            <p class="card-text small">
+                                單字: <span class="badge bg-primary">{{ category.vocab_count }}</span>
+                                文法: <span class="badge bg-success">{{ category.grammar_count }}</span>
+                            </p>
                         </div>
                     </a>
                 </div>
@@ -91,7 +94,6 @@
 
         deleteButtons.forEach(button => {
             button.addEventListener('click', function(event) {
-                // 阻止事件傳播，確保點擊刪除按鈕不會觸發底層的卡片連結 (a 標籤)
                 event.stopPropagation();
                 event.preventDefault(); 
                 
@@ -99,7 +101,6 @@
                 
                 if (confirm(`確定要從所有單字/文法中移除「${categoryName}」這個分類嗎？此操作不可逆。`)) {
                     
-                    // 發送 POST 請求到 /api/delete_category/<category_name>
                     fetch(`/api/delete_category/${encodeURIComponent(categoryName)}`, {
                         method: 'POST',
                         headers: {
@@ -114,7 +115,6 @@
                     })
                     .then(data => {
                         if (data.success) {
-                            // 刪除成功後，重新載入頁面以更新清單和 Flash 訊息
                             window.location.reload(); 
                         } else {
                             alert('刪除失敗: ' + (data.message || '未知錯誤'));

@@ -6,12 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>編輯 {{ '單字' if data_type == 'vocab' else '文法' }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 讓被選中的按鈕顏色更鮮明 (詞性) */
+        .btn-check:checked+.btn-outline-primary {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        /* 讓被選中的按鈕顏色更鮮明 (分類) */
+        .btn-check:checked+.btn-outline-info {
+            background-color: #0dcaf0;
+            color: black;
+            border-color: #0dcaf0;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container mt-5">
         <h1 class="mb-4">編輯 {{ '✏️ 單字' if data_type == 'vocab' else '📘 文法' }}</h1>
         <a href="{{ url_for('list_page', data_type=data_type) }}" class="btn btn-secondary mb-3">← 返回清單</a>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert alert-info">
+            {% for category, message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
 
         <div class="card shadow-sm">
             <div class="card-body">
@@ -23,43 +47,106 @@
                             <span class="text-danger fw-bold">(請用 [ ] 標註核心文法)</span>
                             {% endif %}
                         </label>
-                        <input type="text" class="form-control" id="term" name="term" value="{{ item.term }}" required>
+                        <input type="text" class="form-control" id="term" name="term"
+                            value="{{ item.term or '' if item else '' }}" required
+                            placeholder="{{ '例如: 食べる' if data_type == 'vocab' else '例如: V-辭書形 + [ということだ]' }}">
                     </div>
 
                     {% if data_type == 'vocab' %}
                     <div class="mb-3">
-                        <label for="part_of_speech" class="form-label">詞性</label>
-                        <input type="text" class="form-control" id="part_of_speech" name="part_of_speech"
-                            value="{{ item.part_of_speech or '' }}">
+                        <label class="form-label fw-bold d-block">詞性</label>
+                        <input type="hidden" id="part_of_speech" name="part_of_speech" value="{{ item.part_of_speech or '' }}">
+
+                        <div id="vocab-shortcuts" class="mt-2 d-flex flex-wrap gap-2">
+                            {% set current_pos_list = item.part_of_speech.split(',') | map('trim') | list if item.part_of_speech else [] %}
+                            
+                            {% for pos in master_pos_list %}
+                            {% set pos_short = pos.split(' ')[0] %}
+                            
+                            <input type="checkbox" class="btn-check pos-checkbox" id="pos-{{ loop.index }}" autocomplete="off"
+                                data-pos="{{ pos_short }}"
+                                {% if pos_short in current_pos_list %}checked{% endif %}>
+                            <label class="btn btn-sm btn-outline-primary" for="pos-{{ loop.index }}">
+                                {{ pos }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <small class="form-text text-muted">點擊上方按鈕可選擇詞性 (可多選)。</small>
                     </div>
                     {% endif %}
 
                     <div class="mb-3">
-                        <label for="categories" class="form-label">分類標籤 (以逗號分隔)</label>
-                        <input type="text" class="form-control" id="categories" name="categories"
-                            value="{{ item.categories or '' if item else '' }}" placeholder="例如: N5, 動詞, 食物">
+                        <label for="existing_categories" class="form-label fw-bold d-block">選擇現有分類標籤</label>
+                        <div class="d-flex flex-wrap gap-2" id="existing-category-buttons">
+                            {% set current_categories = item.categories.split(',') | map('trim') | list if item.categories else [] %}
+                            {% for cat in all_categories %}
+                            <input type="checkbox" class="btn-check" id="cat-{{ cat }}" name="selected_categories"
+                                value="{{ cat }}" autocomplete="off"
+                                {% if cat in current_categories %}checked{% endif %}>
+                            <label class="btn btn-sm btn-outline-info" for="cat-{{ cat }}">{{ cat }}</label>
+                            {% endfor %}
+                        </div>
+                        <small class="form-text text-muted d-block mt-2">點擊上方按鈕可選擇多個現有分類。</small>
                     </div>
+
+                    <div class="mb-3">
+                        <label for="new_categories" class="form-label fw-bold">新增分類 (以逗號分隔)</label>
+                        <input type="text" class="form-control" id="new_categories" name="new_categories"
+                            placeholder="例如: N5, 動詞, 食物">
+                    </div>
+
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="explanation" class="form-label">解釋/中文意思</label>
+                            <label for="explanation" class="form-label fw-bold">解釋/中文意思</label>
                             <textarea class="form-control" id="explanation" name="explanation"
                                 rows="3">{{ item.explanation or '' }}</textarea>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="example_sentence" class="form-label">例句</label>
+                            <label for="example_sentence" class="form-label fw-bold">例句</label>
                             <textarea class="form-control" id="example_sentence" name="example_sentence"
                                 rows="3">{{ item.example_sentence or '' }}</textarea>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-success w-100">💾 更新 {{ '單字' if data_type == 'vocab' else '文法'
-                        }}</button>
+                    <button type="submit" class="btn btn-success w-100 mt-3">💾 更新 {{ '單字' if data_type == 'vocab' else
+                        '文法' }}</button>
                 </form>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% if data_type == 'vocab' %}
+    <script>
+        // 🚨 修正後的 JS 邏輯：編輯頁面的詞性同步
+        document.addEventListener('DOMContentLoaded', () => {
+            const posInput = document.getElementById('part_of_speech'); // 現在是 hidden input
+            const posCheckboxes = document.querySelectorAll('.pos-checkbox'); 
+
+            // 函數：同步選中的詞性到隱藏輸入框
+            function syncPosInput() {
+                let selected = [];
+                posCheckboxes.forEach(cb => {
+                    if (cb.checked) {
+                        // 獲取 data-pos 屬性 (N, V, いA 等)
+                        selected.push(cb.getAttribute('data-pos')); 
+                    }
+                });
+                // 將所有選中的詞性以逗號和空格分隔，寫回隱藏輸入框
+                posInput.value = selected.join(', ');
+            }
+
+            // 監聽所有詞性按鈕的點擊事件
+            posCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', syncPosInput);
+            });
+            
+            // 由於編輯頁面已經透過 Jinja 預選了按鈕，
+            // 載入時不需要執行 syncPosInput，只需在按鈕變動時更新。
+        });
+    </script>
+    {% endif %}
 </body>
 
 </html>

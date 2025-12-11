@@ -6,12 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>新增文法</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 文法接續按鈕樣式 */
+        .btn-check:checked+.btn-outline-primary {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        /* 分類按鈕樣式 */
+        .btn-check:checked+.btn-outline-info {
+            background-color: #0dcaf0;
+            color: black;
+            border-color: #0dcaf0;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container mt-5">
         <h1 class="mb-4">📘 新增日語文法</h1>
         <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回總覽</a>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert alert-info">
+            {% for category, message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
 
         <div class="card shadow-sm">
             <div class="card-body">
@@ -26,39 +50,46 @@
                                 placeholder="例如: V-辭書形 + [ということだ]">
                             <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">快捷鍵</button>
-                            <ul class="dropdown-menu dropdown-menu-end" id="grammar-shortcuts">
+                            <ul class="dropdown-menu" id="grammar-shortcuts">
+                                <li><a class="dropdown-item" href="#" data-pos="V-普通形">V-普通形</a></li>
                                 <li><a class="dropdown-item" href="#" data-pos="V-辭書形">V-辭書形</a></li>
                                 <li><a class="dropdown-item" href="#" data-pos="V-た形">V-た形</a></li>
                                 <li><a class="dropdown-item" href="#" data-pos="V-て形">V-て形</a></li>
-                                <li><a class="dropdown-item" href="#" data-pos="N">N (名詞)</a></li>
-                                <li><a class="dropdown-item" href="#" data-pos="いA">いA (い形容詞)</a></li>
-                                <li><a class="dropdown-item" href="#" data-pos="なA">なA (な形容詞)</a></li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li><a class="dropdown-item" href="#" data-pos="~ば">~ば (假設形)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="名">名 (名詞)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="い形">い形 (い形容詞)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="ナ形">ナ形 (ナ形容詞)</a></li>
                             </ul>
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="explanation" class="form-label">解釋/中文意思</label>
-                        <textarea class="form-control" id="explanation" name="explanation" rows="2"
-                            placeholder="文法解說..."></textarea>
+                        <label for="existing_categories" class="form-label fw-bold d-block">選擇現有分類標籤</label>
+                        <div class="d-flex flex-wrap gap-2" id="existing-category-buttons">
+                            {% for cat in all_categories %}
+                            <input type="checkbox" class="btn-check" id="cat-{{ cat }}" name="selected_categories"
+                                value="{{ cat }}" autocomplete="off">
+                            <label class="btn btn-sm btn-outline-info" for="cat-{{ cat }}">{{ cat }}</label>
+                            {% endfor %}
+                        </div>
+                        <small class="form-text text-muted d-block mt-2">點擊上方按鈕可選擇多個現有分類。</small>
                     </div>
 
                     <div class="mb-3">
-                        <label for="categories" class="form-label">分類標籤 (以逗號分隔)</label>
-                        <input type="text" class="form-control" id="categories" name="categories"
-                            value="{{ item.categories or '' if item else '' }}" placeholder="例如: N5, 動詞, 食物">
+                        <label for="new_categories" class="form-label fw-bold">新增分類 (以逗號分隔)</label>
+                        <input type="text" class="form-control" id="new_categories" name="new_categories"
+                            placeholder="例如: N3, 形式名詞, 敬語">
                     </div>
                     <div class="mb-3">
-                        <label for="example_sentence" class="form-label">例句</label>
+                        <label for="explanation" class="form-label fw-bold">解釋/中文意思</label>
+                        <textarea class="form-control" id="explanation" name="explanation" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="example_sentence" class="form-label fw-bold">例句</label>
                         <textarea class="form-control" id="example_sentence" name="example_sentence" rows="2"
                             placeholder="完整的日語例句..."></textarea>
                     </div>
 
-                    <button type="submit" class="btn btn-info w-100">儲存文法</button>
+                    <button type="submit" class="btn btn-info w-100 mt-3">儲存文法</button>
                 </form>
             </div>
         </div>
@@ -66,12 +97,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 文法接續快捷鍵功能
+        // 文法接續快捷鍵功能 (保持不變)
         document.getElementById('grammar-shortcuts').addEventListener('click', function (e) {
             if (e.target.tagName === 'A') {
                 e.preventDefault();
                 const termInput = document.getElementById('term');
-                const selectedPos = e.target.getAttribute('data-pos');
+                // 這裡 data-pos 實際上是接續形提示
+                const selectedPos = e.target.getAttribute('data-pos'); 
 
                 let currentValue = termInput.value;
                 let newValue = selectedPos;

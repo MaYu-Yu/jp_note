@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         /* (CSS 樣式保持不變，略) */
-        body { background-color: #f8f9fa; }
+        body {
+            background-color: #f8f9fa;
+        }
+
         .flashcard-container {
             min-height: 80vh;
             display: flex;
@@ -17,74 +21,103 @@
             text-align: center;
             padding-top: 5vh;
         }
+
         .flashcard {
             width: 95%;
             max-width: 900px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             border-radius: 0.5rem;
         }
+
         .card-header-main {
             padding: 2rem;
-            background-color: #d6eaff; 
+            background-color: #d6eaff;
             border-bottom: 2px solid #007bff;
             cursor: pointer;
             border-radius: 0.5rem 0.5rem 0 0;
             transition: background-color 0.3s;
         }
+
         .card-header-main:hover {
             background-color: #c1d9f4;
         }
-        .term-text { 
+
+        .term-text {
             font-size: clamp(2.5em, 8vw, 4em);
-            font-weight: bold; 
-            color: #007bff; 
+            font-weight: bold;
+            color: #007bff;
             margin-bottom: 0;
             display: inline;
         }
+
         #explanation-content {
             padding: 1.5rem 2rem;
-            text-align: left; 
+            text-align: left;
             transition: max-height 0.5s ease-out, opacity 0.3s ease-out;
-            max-height: 0; 
+            max-height: 0;
             overflow: hidden;
             background-color: #fff;
             border-radius: 0 0 0.5rem 0.5rem;
             opacity: 0;
             visibility: hidden;
         }
+
         #explanation-content.show {
-            max-height: 800px; 
+            max-height: 800px;
             opacity: 1;
             visibility: visible;
         }
+
         .content-label {
-            font-size: clamp(1.4em, 3.5vw, 1.8em); 
+            font-size: clamp(1.4em, 3.5vw, 1.8em);
             font-weight: 500;
             margin-top: 1rem;
             margin-bottom: 0.3rem;
         }
-        .content-text { 
-            font-size: clamp(1.5em, 4vw, 2em); 
+
+        .content-text {
+            font-size: clamp(1.5em, 4vw, 2em);
             line-height: 1.5;
-            overflow-wrap: break-word; 
-            word-break: break-word; 
+            overflow-wrap: break-word;
+            word-break: break-word;
             padding: 0.5rem 0;
         }
-        .core-term-style { color: #d9534f; } 
-        .explanation-style { color: #5cb85c; } 
-        .example-style { color: #0275d8; font-style: italic; } 
+
+        .core-term-style {
+            color: #d9534f;
+        }
+
+        .explanation-style {
+            color: #5cb85c;
+        }
+
+        .example-style {
+            color: #0275d8;
+            font-style: italic;
+        }
+
         .sentence-link {
-            text-decoration: none; 
+            text-decoration: none;
             cursor: pointer;
             display: block;
             padding: 0.5rem 0;
-            border: 1px dashed #ccc;
+
+            /* 移除 border 屬性 */
+            /* border: 1px dashed #ccc; */
+
             border-radius: 5px;
             margin-top: 5px;
         }
+
         .sentence-link:hover {
             background-color: #f0f0f0;
         }
+
+        /* 移除點擊時的瀏覽器預設輪廓 */
+        .sentence-link:focus {
+            outline: none !important;
+        }
+
         /* 新增樣式: 讓跳轉輸入框和按鈕並排 */
         .jump-control {
             display: flex;
@@ -92,16 +125,18 @@
             gap: 10px;
             margin-top: 20px;
         }
+
         .jump-input {
             width: 100px;
             text-align: center;
         }
     </style>
 </head>
+
 <body>
     <div class="flashcard-container">
         <a href="{{ url_for('flashcard_select') }}" class="btn btn-outline-secondary mb-4">← 退出單字卡</a>
-        
+
         <h3 class="mb-2">
             第 <span id="current-display">{{ current_index + 1 }}</span> / {{ total_count }} 筆
         </h3>
@@ -110,7 +145,7 @@
         </p>
 
         <div class="flashcard card" id="flashcard">
-            
+
             <div class="card-header-main" onclick="manualFlipAndSpeak()">
                 <p class="term-text">
                     {{ card.term }}
@@ -122,7 +157,7 @@
             </div>
 
             <div id="explanation-content" class="bg-white">
-                
+
                 <p class="content-label text-muted">日語/核心文法:</p>
                 <p class="content-text core-term-style" id="content-core-term"></p>
                 <hr>
@@ -132,27 +167,23 @@
                 <hr>
 
                 <p class="content-label text-muted">例句 (點擊翻譯):</p>
-                <a 
-                    href="#" 
-                    onclick="return openGoogleTranslate('{{ card.example_sentence | urlencode }}')" 
-                    class="sentence-link" 
-                    target="_blank"
-                >
+                <a href="#" onclick="return openGoogleTranslate('{{ card.example_sentence | urlencode }}')"
+                    class="sentence-link" target="_blank">
                     <p class="content-text example-style mb-0">{{ card.example_sentence }}</p>
                 </a>
-                
+
             </div>
-            
+
         </div>
 
         <div class="w-100 mt-5 d-flex justify-content-center flex-column align-items-center">
-            
+
             <div class="d-flex gap-3 mb-3">
                 <button class="btn btn-warning btn-lg" onclick="navigateCard(-1)">⬅️ 上一個</button>
                 <button class="btn btn-success btn-lg" id="play-pause-btn" onclick="toggleAutoPlay()">▶️ 自動播放</button>
                 <button class="btn btn-warning btn-lg" onclick="navigateCard(1)">下一個 ➡️</button>
             </div>
-            
+
             <div class="d-flex align-items-center gap-3">
                 <label for="interval-select" class="form-label mb-0">間隔 (秒):</label>
                 <select class="form-select w-auto" id="interval-select">
@@ -167,20 +198,13 @@
                 </select>
                 <button class="btn btn-info" onclick="speakCurrentCardManually()">🔊 重唸</button>
             </div>
-            
+
             <hr class="w-75 my-3">
-            
+
             <div class="jump-control">
                 <label for="jump-to-input" class="form-label mb-0">跳轉至筆數:</label>
-                <input 
-                    type="number" 
-                    id="jump-to-input" 
-                    class="form-control jump-input" 
-                    min="1" 
-                    max="{{ total_count }}" 
-                    value="{{ current_index + 1 }}"
-                    aria-label="跳轉筆數"
-                >
+                <input type="number" id="jump-to-input" class="form-control jump-input" min="1" max="{{ total_count }}"
+                    value="{{ current_index + 1 }}" aria-label="跳轉筆數">
                 <button class="btn btn-primary" onclick="jumpToCard()">GO</button>
                 <small class="text-muted">(1 - {{ total_count }})</small>
             </div>
@@ -190,20 +214,21 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 📌 修正：確保 JS 變數名稱與 app.py 傳入的名稱一致
         const cardData = {{ card | tojson | safe }};
         const currentIndex = {{ current_index }};
         const totalCount = {{ total_count }};
-        
-        const SESSION_KEY = 'flashcard_autoplay_playing'; 
+
+        const SESSION_KEY = 'flashcard_autoplay_playing';
         const INTERVAL_KEY = 'flashcard_autoplay_interval';
-        let autoPlayTimeout = null; 
+        let autoPlayTimeout = null;
         const contentElement = document.getElementById('explanation-content');
-        const intervalSelect = document.getElementById('interval-select'); 
-        
-        const MAX_TTS_TIMEOUT = 15000; 
+        const intervalSelect = document.getElementById('interval-select');
+
+        const MAX_TTS_TIMEOUT = 15000;
 
         // ------------------------------------------------------------------
-        // ** 輔助函數和語音初始化 (代碼與您提供的版本一致，未修改) **
+        // ** 輔助函數和語音初始化 (以下 JS 程式碼保持不變) **
         // ------------------------------------------------------------------
 
         function extractCoreTerm(text) {
@@ -215,11 +240,11 @@
         function createUtterance(text, lang = 'ja-JP') {
             if (!text) return null;
             let textToSpeak = text.trim();
-            
+
             if (lang === 'ja-JP') {
                 const match = textToSpeak.match(/\[([^\]]+)\]/);
                 if (match && match[1]) {
-                    textToSpeak = match[1].trim(); 
+                    textToSpeak = match[1].trim();
                 } else {
                     textToSpeak = textToSpeak.split('+')[0].trim();
                 }
@@ -234,16 +259,16 @@
         }
 
         function speakCurrentCard(onFinishCallback = null, includeChinese = true) {
-            window.speechSynthesis.cancel(); 
+            window.speechSynthesis.cancel();
 
             const utterances = [];
-            utterances.push(createUtterance(cardData.term)); 
+            utterances.push(createUtterance(cardData.term));
 
             if (includeChinese && cardData.explanation) {
-                 utterances.push(createUtterance(cardData.explanation, 'zh-TW')); 
+                utterances.push(createUtterance(cardData.explanation, 'zh-TW'));
             }
-            
-            utterances.push(createUtterance(cardData.example_sentence)); 
+
+            utterances.push(createUtterance(cardData.example_sentence));
 
             const finalUtterances = utterances.filter(u => u !== null);
 
@@ -251,7 +276,7 @@
                 if (onFinishCallback) onFinishCallback();
                 return;
             }
-            
+
             let ttsFallback = null;
 
             if (onFinishCallback) {
@@ -259,50 +284,50 @@
                     console.warn("TTS fallback executed: Forcing onFinishCallback.");
                     window.speechSynthesis.cancel();
                     onFinishCallback();
-                }, MAX_TTS_TIMEOUT); 
+                }, MAX_TTS_TIMEOUT);
             }
 
             function queueUtterances(index) {
                 if (index >= finalUtterances.length) {
-                    if (ttsFallback) clearTimeout(ttsFallback); 
+                    if (ttsFallback) clearTimeout(ttsFallback);
                     if (onFinishCallback) onFinishCallback();
                     return;
                 }
-                
+
                 const currentUtterance = finalUtterances[index];
-                
+
                 currentUtterance.onend = () => {
                     queueUtterances(index + 1);
                 };
-                
+
                 currentUtterance.onerror = (event) => {
                     console.error("TTS Error:", event.error);
-                    queueUtterances(index + 1); 
+                    queueUtterances(index + 1);
                 };
 
                 window.speechSynthesis.speak(currentUtterance);
             }
-            
+
             queueUtterances(0);
         }
 
         function stopAutoPlayLoop(updateButton = true) {
-             if (autoPlayTimeout) {
+            if (autoPlayTimeout) {
                 clearTimeout(autoPlayTimeout);
                 autoPlayTimeout = null;
-             }
-             window.speechSynthesis.cancel(); 
-             sessionStorage.removeItem(SESSION_KEY);
-             sessionStorage.removeItem(INTERVAL_KEY); 
-             
-             if (intervalSelect) {
-                 intervalSelect.disabled = false;
-             }
+            }
+            window.speechSynthesis.cancel();
+            sessionStorage.removeItem(SESSION_KEY);
+            sessionStorage.removeItem(INTERVAL_KEY);
 
-             if (updateButton) {
+            if (intervalSelect) {
+                intervalSelect.disabled = false;
+            }
+
+            if (updateButton) {
                 document.getElementById('play-pause-btn').innerHTML = '▶️ 自動播放';
-             }
-             console.log("Auto-play loop stopped by user action.");
+            }
+            console.log("Auto-play loop stopped by user action.");
         }
 
 
@@ -315,58 +340,76 @@
 
             const savedInterval = sessionStorage.getItem(INTERVAL_KEY);
             if (savedInterval) {
-                 intervalSelect.value = savedInterval;
+                intervalSelect.value = savedInterval;
             }
 
             if (sessionStorage.getItem(SESSION_KEY) === 'true') {
                 const btn = document.getElementById('play-pause-btn');
                 btn.innerHTML = '⏸️ 暫停';
-                autoPlayStep(); 
-                
+                autoPlayStep();
+
                 if (intervalSelect) {
                     intervalSelect.disabled = true;
                 }
             }
         });
-        
+
         // --- 翻譯連結函數 ---
-        
+
         function openGoogleTranslate(encodedText) {
-            stopAutoPlayLoop(false); 
-            
+            stopAutoPlayLoop(false);
+
             const url = `https://translate.google.com/?sl=ja&tl=zh-TW&text=${encodedText}&op=translate`;
             window.open(url, '_blank');
-            return false; 
+            return false;
         }
-        
+
         // --- 導航與手動操作函數 ---
 
+        /**
+         * 將當前索引儲存到後端 Session 中，作為進度記憶點。
+         * @param {number} index - 要儲存的當前單字卡索引。
+         */
         async function updateIndexMemory(index) {
             try {
-                // 🚨 這裡使用 update_flashcard_index 路由
+                // 🚨 修正點：url_for 不再需要參數，且固定為 /api/update_index
                 const response = await fetch("{{ url_for('update_flashcard_index') }}", {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    // 將 index 放在 request body 中傳遞
                     body: JSON.stringify({ index: index })
                 });
-                return await response.json();
+
+                if (!response.ok) {
+                    console.error('API 錯誤:', response.statusText);
+                    return false;
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    console.error('更新索引失敗:', result.message);
+                }
+                return result.success;
+
             } catch (error) {
-                console.error('Error updating index:', error);
-                return { success: false };
+                console.error('更新索引時發生網路錯誤:', error);
+                return false;
             }
         }
-        
+
         /**
          * 處理前後導航或自動導航
          * @param {number} direction - 1 (下一個) 或 -1 (上一個)
          */
         async function navigateCard(direction) {
-            
+
             if (sessionStorage.getItem(SESSION_KEY) !== 'true') {
-                 stopAutoPlayLoop(); 
+                stopAutoPlayLoop();
             } else {
                 if (autoPlayTimeout) clearTimeout(autoPlayTimeout);
-                window.speechSynthesis.cancel(); 
+                window.speechSynthesis.cancel();
             }
 
 
@@ -375,128 +418,129 @@
 
             if (isNext && isContentHidden && sessionStorage.getItem(SESSION_KEY) !== 'true') {
                 contentElement.classList.add('show');
-                speakCurrentCard(() => {}, true); 
-                return; 
+                speakCurrentCard(() => { }, true);
+                return;
             }
-            
+
             let nextIndex = currentIndex + direction;
 
             if (nextIndex >= totalCount) {
-                nextIndex = 0; 
+                nextIndex = 0;
             } else if (nextIndex < 0) {
-                nextIndex = totalCount - 1; 
+                nextIndex = totalCount - 1;
             }
 
             // ** 導航至新索引 **
             await navigateToNewIndex(nextIndex);
         }
-        
+
         /**
          * 處理跳轉至指定筆數
          */
         async function jumpToCard() {
-             // **使用者行為：強制停止自動播放**
-            stopAutoPlayLoop(); 
-            
+            // **使用者行為：強制停止自動播放**
+            stopAutoPlayLoop();
+
             const jumpInput = document.getElementById('jump-to-input');
             const target = parseInt(jumpInput.value);
-            
+
             if (isNaN(target) || target < 1 || target > totalCount) {
                 alert(`請輸入一個有效的筆數 (1 到 ${totalCount})。`);
                 jumpInput.value = currentIndex + 1; // 重置回當前筆數
                 return;
             }
-            
+
             // 將筆數轉換為程式碼中的 0-based 索引
-            const targetIndex = target - 1; 
+            const targetIndex = target - 1;
 
             // ** 跳轉至新索引 **
             await navigateToNewIndex(targetIndex);
         }
-        
+
         /**
          * 通用跳轉函式：更新索引並重新載入頁面
          * @param {number} newIndex - 新的 0-based 索引
          */
         async function navigateToNewIndex(newIndex) {
             // 1. 更新後端 Session 中的索引
-            await updateIndexMemory(newIndex); 
+            await updateIndexMemory(newIndex);
             // 2. 重新載入頁面，Flask 會從 Session 中讀取新索引
             window.location.href = `{{ url_for('flashcard_deck', action='resume') }}`;
         }
 
         function manualFlipAndSpeak() {
-            stopAutoPlayLoop(); 
-            
+            stopAutoPlayLoop();
+
             if (contentElement.classList.contains('show')) {
-                 window.speechSynthesis.cancel(); 
-                 contentElement.classList.remove('show');
+                window.speechSynthesis.cancel();
+                contentElement.classList.remove('show');
             } else {
-                 contentElement.classList.add('show'); 
-                 speakCurrentCard(() => {}, true); 
+                contentElement.classList.add('show');
+                speakCurrentCard(() => { }, true);
             }
         }
-        
+
         function speakCurrentCardManually() {
             stopAutoPlayLoop();
             contentElement.classList.add('show');
-            speakCurrentCard(() => {}, true);
+            speakCurrentCard(() => { }, true);
         }
 
 
         // --- 自動播放控制 ---
 
         function autoPlayStep() {
-            if (sessionStorage.getItem(SESSION_KEY) !== 'true') return; 
+            if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
             if (autoPlayTimeout) clearTimeout(autoPlayTimeout);
-            
+
             const intervalString = sessionStorage.getItem(INTERVAL_KEY);
             const interval = intervalString ? parseInt(intervalString) : 5000;
-            
+
             setTimeout(() => {
-                
-                if (sessionStorage.getItem(SESSION_KEY) !== 'true') return; 
+
+                if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
                 contentElement.classList.add('show');
-                
+
                 speakCurrentCard(() => {
-                    
-                    if (sessionStorage.getItem(SESSION_KEY) !== 'true') return; 
+
+                    if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
 
                     autoPlayTimeout = setTimeout(async () => {
-                         window.speechSynthesis.cancel();
-                         contentElement.classList.remove('show'); 
-                         await navigateCard(1); 
-                    }, interval); 
-                }, true); 
+                        window.speechSynthesis.cancel();
+                        contentElement.classList.remove('show');
+                        await navigateCard(1);
+                    }, interval);
+                }, true);
 
-            }, 500); 
+            }, 500);
         }
 
         function toggleAutoPlay() {
             const btn = document.getElementById('play-pause-btn');
-            
+
             if (sessionStorage.getItem(SESSION_KEY) === 'true') {
                 // 暫停邏輯
-                stopAutoPlayLoop(); 
+                stopAutoPlayLoop();
                 btn.innerHTML = '▶️ 自動播放';
             } else {
                 // 開始邏輯
-                
+
                 const selectedInterval = intervalSelect.value;
                 sessionStorage.setItem(INTERVAL_KEY, selectedInterval);
 
-                sessionStorage.setItem(SESSION_KEY, 'true'); 
+                sessionStorage.setItem(SESSION_KEY, 'true');
                 btn.innerHTML = '⏸️ 暫停';
-                
+
                 intervalSelect.disabled = true;
 
                 if (contentElement.classList.contains('show')) {
                     contentElement.classList.remove('show');
                 }
-                autoPlayStep(); 
+                autoPlayStep();
             }
         }
 
     </script>
 </body>
+
 </html>

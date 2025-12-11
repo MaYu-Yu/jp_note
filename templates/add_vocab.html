@@ -6,12 +6,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>新增單字</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 詞性按鈕樣式 */
+        .btn-check:checked+.btn-outline-primary {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+        /* 分類按鈕樣式 */
+        .btn-check:checked+.btn-outline-info {
+            background-color: #0dcaf0;
+            color: black;
+            border-color: #0dcaf0;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container mt-5">
         <h1 class="mb-4">✏️ 新增日語單字</h1>
         <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回總覽</a>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert alert-info">
+            {% for category, message in messages %}
+            <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
 
         <div class="card shadow-sm">
             <div class="card-body">
@@ -22,39 +46,53 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="part_of_speech" class="form-label d-block">詞性</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="part_of_speech" name="part_of_speech"
-                                placeholder="N, V, いA, ...">
-                            <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown"
-                                aria-expanded="false">快捷鍵</button>
-                            <ul class="dropdown-menu dropdown-menu-end" id="vocab-shortcuts">
-                                <li><a class="dropdown-item" href="#" data-pos="N">N (名詞)</a></li>
-                                <li><a class="dropdown-item" href="#" data-pos="V">V (動詞)</a></li>
-                                <li><a class="dropdown-item" href="#" data-pos="いA">いA (い形容詞)</a></li>
-                                <li><a class="dropdown-item" href="#" data-pos="なA">なA (な形容詞)</a></li>
-                                <li><a class="dropdown-item" href="#" data-pos="Adv">Adv (副詞)</a></li>
-                            </ul>
+                        <label class="form-label fw-bold d-block">詞性</label>
+                        <input type="hidden" id="part_of_speech" name="part_of_speech" value="">
+                        
+                        <div id="vocab-shortcuts" class="mt-2 d-flex flex-wrap gap-2">
+                            {% for pos in master_pos_list %}
+                            {% set pos_short = pos.split(' ')[0] %}
+                            <input type="checkbox" class="btn-check pos-checkbox" id="pos-{{ loop.index }}" autocomplete="off"
+                                data-pos="{{ pos_short }}">
+                            <label class="btn btn-sm btn-outline-primary" for="pos-{{ loop.index }}">
+                                {{ pos }}
+                            </label>
+                            {% endfor %}
                         </div>
+                        <small class="form-text text-muted">點擊上方按鈕可選擇詞性 (可多選)。</small>
                     </div>
-                    <div class="mb-3">
-                        <label for="categories" class="form-label">分類標籤 (以逗號分隔)</label>
-                        <input type="text" class="form-control" id="categories" name="categories"
-                            value="{{ item.categories or '' if item else '' }}" placeholder="例如: N5, 動詞, 食物">
-                    </div>
+
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="explanation" class="form-label">解釋/中文意思</label>
+                            <label for="explanation" class="form-label fw-bold">解釋/中文意思</label>
                             <textarea class="form-control" id="explanation" name="explanation" rows="2"></textarea>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="example_sentence" class="form-label">例句</label>
+                            <label for="example_sentence" class="form-label fw-bold">例句</label>
                             <textarea class="form-control" id="example_sentence" name="example_sentence"
                                 rows="2"></textarea>
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100">儲存單字</button>
+                    <div class="mb-3">
+                        <label for="existing_categories" class="form-label fw-bold d-block">選擇現有分類標籤</label>
+                        <div class="d-flex flex-wrap gap-2" id="existing-category-buttons">
+                            {% for cat in all_categories %}
+                            <input type="checkbox" class="btn-check" id="cat-{{ cat }}" name="selected_categories"
+                                value="{{ cat }}" autocomplete="off">
+                            <label class="btn btn-sm btn-outline-info" for="cat-{{ cat }}">{{ cat }}</label>
+                            {% endfor %}
+                        </div>
+                        <small class="form-text text-muted d-block mt-2">點擊上方按鈕可選擇多個現有分類。</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_categories" class="form-label fw-bold">新增分類 (以逗號分隔)</label>
+                        <input type="text" class="form-control" id="new_categories" name="new_categories"
+                            placeholder="例如: N5, 動詞, 食物">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mt-3">儲存單字</button>
                 </form>
             </div>
         </div>
@@ -62,22 +100,29 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 單字詞性快捷鍵功能 (追加 , 分隔)
-        document.getElementById('vocab-shortcuts').addEventListener('click', function (e) {
-            if (e.target.tagName === 'A') {
-                e.preventDefault();
-                const posInput = document.getElementById('part_of_speech');
-                const selectedPos = e.target.getAttribute('data-pos');
+        // 🚨 修正後的 JS 邏輯：將選中的詞性寫入到隱藏的 part_of_speech 輸入框中
+        document.addEventListener('DOMContentLoaded', () => {
+            const posInput = document.getElementById('part_of_speech'); // 現在是 hidden input
+            const posCheckboxes = document.querySelectorAll('.pos-checkbox'); 
 
-                if (posInput.value.trim() === '') {
-                    posInput.value = selectedPos;
-                } else {
-                    posInput.value += ', ' + selectedPos;
-                }
-                posInput.focus();
+            // 函數：同步選中的詞性到隱藏輸入框
+            function syncPosInput() {
+                let selected = [];
+                posCheckboxes.forEach(cb => {
+                    if (cb.checked) {
+                        // 獲取 data-pos 屬性 (N, V, いA 等)
+                        selected.push(cb.getAttribute('data-pos')); 
+                    }
+                });
+                // 將所有選中的詞性以逗號和空格分隔，寫回隱藏輸入框
+                posInput.value = selected.join(', ');
             }
+
+            // 監聽所有詞性按鈕的點擊事件
+            posCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', syncPosInput);
+            });
         });
     </script>
 </body>
-
 </html>

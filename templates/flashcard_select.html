@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,9 +10,20 @@
         .card-body {
             padding: 30px;
         }
-        .form-select, .btn {
+
+        .form-select,
+        .btn {
             font-size: 1.1rem;
         }
+
+        /* 新增：按鈕群組的樣式修正，讓它們可以換行 */
+        .btn-group.d-flex button {
+            flex-grow: 1;
+            margin: 5px;
+            /* 按鈕之間增加間距 */
+        }
+
+        /* 詞性篩選群組的動畫和隱藏設定 */
         #pos-filter-group {
             transition: opacity 0.3s ease, max-height 0.3s ease;
             overflow: hidden;
@@ -19,6 +31,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container mt-5">
         <h1 class="mb-4">🎴 單字卡學習設定</h1>
@@ -26,104 +39,197 @@
 
         <div class="card shadow-lg">
             <div class="card-body">
-                <form id="flashcard-form"> 
+                <form id="flashcard-form">
+
+                    {# 1. 選擇學習內容 (下拉選單維持不變) #}
                     <div class="mb-4">
                         <label for="data_type" class="form-label fw-bold">1. 選擇學習內容</label>
                         <select class="form-select" id="data_type" name="data_type">
-                            <option value="all">所有內容 (單字+文法)</option>
-                            <option value="vocab">僅單字</option>
-                            <option value="grammar">僅文法</option>
+                            <option value="all" {% if last_filters.data_type=='all' %}selected{% endif %}>所有內容 (單字+文法)
+                            </option>
+                            <option value="vocab" {% if last_filters.data_type=='vocab' %}selected{% endif %}>僅單字
+                            </option>
+                            <option value="grammar" {% if last_filters.data_type=='grammar' %}selected{% endif %}>僅文法
+                            </option>
                         </select>
                     </div>
-                    
-                    <div class="mb-4" id="pos-filter-group">
-                        <label for="pos_filter" class="form-label fw-bold">2. 詞性篩選</label>
-                        <select class="form-select" id="pos_filter" name="pos_filter">
-                            <option value="all">所有詞性</option>
-                            {% for pos in parts_of_speech %}
-                            <option value="{{ pos.part_of_speech }}">{{ pos.part_of_speech }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
+
+                    {# 2. 分類篩選 (改為按鈕組) #}
                     <div class="mb-4">
-                        <label for="category_filter" class="form-label fw-bold">3. 分類篩選</label>
-                        <select class="form-select" id="category_filter" name="category_filter">
-                            <option value="all">所有分類</option>
-                            {% for cat in categories %}
-                            <option value="{{ cat }}">{{ cat }}</option>
+                        <label for="category_filter" class="form-label fw-bold">2. 分類篩選</label>
+                        {# 用 hidden input 存儲選中的值 #}
+                        <input type="hidden" id="category_filter" name="category_filter"
+                            value="{{ last_filters.category_filter or 'all' }}">
+
+                        <div id="category-button-group" class="btn-group d-flex flex-wrap" role="group">
+                            {# 預設選項：所有分類 #}
+                            <button type="button" class="btn btn-outline-primary category-option"
+                                data-value="all">所有分類</button>
+
+                            {# 迭代資料庫中所有分類 #}
+                            {% for cat in all_categories %}
+                            <button type="button" class="btn btn-outline-primary category-option"
+                                data-value="{{ cat }}">{{ cat }}</button>
                             {% endfor %}
-                        </select>
+                        </div>
                     </div>
-                    
+
+                    {# 3. 詞性篩選 (改為按鈕組，且只在選擇「僅單字」時顯示) #}
+                    <div class="mb-4" id="pos-filter-group">
+                        <label for="pos_filter" class="form-label fw-bold">3. 詞性篩選</label>
+                        {# 用 hidden input 存儲選中的值 #}
+                        <input type="hidden" id="pos_filter" name="pos_filter"
+                            value="{{ last_filters.pos_filter or 'all' }}">
+
+                        <div id="pos-button-group" class="btn-group d-flex flex-wrap" role="group">
+                            {# 迭代資料庫中所有詞性 #}
+                            {% for pos in all_pos %}
+                            <button type="button" class="btn btn-outline-success pos-option" data-value="{{ pos }}">{{
+                                pos }}</button>
+                            {% endfor %}
+                            {# 預設選項：所有詞性 #}
+                            <button type="button" class="btn btn-outline-success pos-option"
+                                data-value="all">所有詞性</button>
+                        </div>
+                    </div>
+
+                    {# 4. 選擇開始點 #}
                     <div class="mb-4">
                         <label class="form-label fw-bold">4. 選擇開始點</label>
                         <div class="d-flex gap-3">
-                            <button type="button" class="btn btn-outline-info w-50" onclick="startDeck('resume')">⏯️ 接續上次進度</button>
-                            <button type="button" class="btn btn-outline-warning w-50" onclick="startDeck('start')">🔄 從頭開始 (載入新篩選條件)</button>
+                            <button type="button" class="btn btn-outline-info w-50" onclick="startDeck('resume')">⏯️
+                                接續上次進度</button>
+                            <button type="button" class="btn btn-outline-warning w-50" onclick="startDeck('start')">🔄
+                                從頭開始 (載入新篩選條件)</button>
                         </div>
-                        <small class="form-text text-muted mt-2 d-block">上次學習進度：<span id="last-index-info">正在初始化...</span></small>
+                        <small class="form-text text-muted mt-2 d-block">上次學習進度：<span
+                                id="last-index-info">正在初始化...</span></small>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 函數：處理按鈕篩選器的點擊和狀態更新
+        function setupButtonFilters(groupSelector, inputId, optionClass) {
+            const hiddenInput = document.getElementById(inputId);
+            const options = document.querySelectorAll(groupSelector + ' .' + optionClass);
+
+            // 決定按鈕的顏色類別
+            const isCategory = groupSelector === '#category-button-group';
+            const defaultOutlineClass = isCategory ? 'btn-outline-primary' : 'btn-outline-success';
+            const activeClass = isCategory ? 'btn-primary' : 'btn-success';
+
+            // 1. 初始化狀態
+            const initialValue = hiddenInput.value;
+            options.forEach(btn => {
+                btn.classList.remove(defaultOutlineClass, activeClass);
+                if (btn.dataset.value === initialValue) {
+                    btn.classList.add(activeClass);
+                } else {
+                    btn.classList.add(defaultOutlineClass);
+                }
+            });
+
+            // 2. 點擊處理器
+            options.forEach(btn => {
+                btn.addEventListener('click', function () {
+                    // 重置所有按鈕狀態
+                    options.forEach(otherBtn => {
+                        otherBtn.classList.remove(activeClass);
+                        otherBtn.classList.add(defaultOutlineClass);
+                    });
+
+                    // 設定新選中的按鈕狀態
+                    hiddenInput.value = this.dataset.value;
+                    this.classList.remove(defaultOutlineClass);
+                    this.classList.add(activeClass);
+                });
+            });
+        }
+
         // 函數：控制詞性篩選器（pos_filter）的顯示與隱藏
         function togglePosFilter() {
             const dataType = document.getElementById('data_type').value;
             const posFilterDiv = document.getElementById('pos-filter-group');
-            
-            // 只有在選擇 'vocab' (單字) 時才顯示詞性篩選
+
+            // 只有在選擇 'vocab' (僅單字) 時才顯示詞性篩選
             if (dataType === 'vocab') {
                 posFilterDiv.style.display = 'block';
             } else {
                 posFilterDiv.style.display = 'none';
+                // 當隱藏時，將詞性篩選器的值強制設為 'all'，確保提交數據的正確性
+                document.getElementById('pos_filter').value = 'all';
+
+                // 重置詞性按鈕的視覺狀態到 '所有詞性'
+                const allPosButton = document.querySelector('#pos-button-group .pos-option[data-value="all"]');
+                const otherPosButtons = document.querySelectorAll('#pos-button-group .pos-option:not([data-value="all"])');
+
+                if (allPosButton) {
+                    // 確保所有詞性按鈕是激活狀態
+                    allPosButton.classList.remove('btn-outline-success');
+                    allPosButton.classList.add('btn-success');
+
+                    // 確保其他詞性按鈕是未激活狀態
+                    otherPosButtons.forEach(btn => {
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-success');
+                    });
+                }
             }
         }
-        
+
         // 頁面加載時的初始化設置
         document.addEventListener('DOMContentLoaded', () => {
-            togglePosFilter(); 
+
+            // 設置按鈕過濾器
+            setupButtonFilters('#category-button-group', 'category_filter', 'category-option');
+            setupButtonFilters('#pos-button-group', 'pos_filter', 'pos-option');
+
+            // 設置學習內容變化監聽
             document.getElementById('data_type').addEventListener('change', togglePosFilter);
 
-            // 初始狀態提示：當前篩選器的值，將用來檢查上次進度。
+            // 初始化時檢查詞性篩選器是否應顯示/隱藏
+            togglePosFilter();
+
+            // 初始狀態提示
             document.getElementById('last-index-info').innerText = "請選擇內容後，點擊「從頭開始」載入數據，或點擊「接續上次進度」。";
         });
 
         // 函數：啟動單字卡頁面
         async function startDeck(action) {
-            
-            // 🚨 修正點：如果選擇「接續上次進度」，直接導航。
-            // 頁面載入時的 flashcard_deck/<action> 路由會檢查 Session 中是否有數據。
+
+            // 處理「接續上次進度」
             if (action === 'resume') {
-                // 直接導航到單字卡顯示頁面
-                window.location.href = `{{ url_for('flashcard_deck', action='resume') }}`;
+                window.location.href = `{{ url_for('flashcard_deck') }}?action=resume`;
                 return;
             }
 
-            // 對於「從頭開始」 (start) 或其他需要重新載入數據的行為，則執行 loadAndCheckData
-            const dataLoaded = await loadAndCheckData(); 
+            // 對於「從頭開始」 (start)，則執行 loadAndCheckData
+            const dataLoaded = await loadAndCheckData();
 
             if (!dataLoaded) {
                 return;
             }
-            
+
             // 導航到單字卡顯示頁面
-            window.location.href = `{{ url_for('flashcard_deck', action='') }}${action}`;
+            window.location.href = `{{ url_for('flashcard_deck') }}?action=start`;
         }
-        
+
         // 函數：加載數據並檢查上次進度，成功後將單字卡數據存入 Session
         async function loadAndCheckData() {
             const formData = new FormData(document.getElementById('flashcard-form'));
             const data = Object.fromEntries(formData.entries());
-            
-            // 確保 pos_filter 在選擇非單字時為 'all'
+
+            // 確保 pos_filter 在選擇非單字時為 'all' 
             if (data.data_type !== 'vocab') {
                 data.pos_filter = 'all';
             }
+
+            // max_count 參數 (後端需要)
+            data.max_count = 50;
 
             const lastIndexInfoElement = document.getElementById('last-index-info');
             lastIndexInfoElement.innerText = "⏳ 正在載入數據，請稍候...";
@@ -132,7 +238,7 @@
                 // 發送請求到 app.py 中的 flashcard_data
                 const response = await fetch("{{ url_for('flashcard_data') }}", {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
 
@@ -141,19 +247,19 @@
                 }
 
                 const result = await response.json();
-                
+
                 if (result.success && result.count > 0) {
-                    // 顯示載入結果，但導航會由 startDeck 決定
-                    lastIndexInfoElement.innerText = 
+                    // 顯示載入結果
+                    lastIndexInfoElement.innerText =
                         `✅ 數據載入成功！共 ${result.count} 筆。上次背到第 ${result.last_index + 1} 筆。`;
-                    return true; 
+                    return true;
                 } else if (result.count === 0) {
                     lastIndexInfoElement.innerText = "❌ 清單中沒有符合條件的數據！請調整篩選條件。";
                     alert("清單中沒有符合條件的數據！請調整篩選條件。");
-                    return false; 
+                    return false;
                 } else {
                     lastIndexInfoElement.innerText = "❌ 數據加載失敗，請檢查後端日誌。";
-                    return false; 
+                    return false;
                 }
             } catch (error) {
                 console.error('數據加載錯誤:', error);
@@ -163,4 +269,5 @@
         }
     </script>
 </body>
+
 </html>
