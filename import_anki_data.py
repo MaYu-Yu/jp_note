@@ -65,7 +65,7 @@ POS_INHERITANCE_RULES = {
 }
 
 
-# --- OpenCC 初始化 (修正區) ---
+# --- OpenCC 初始化 (繁簡轉換) ---
 
 def initialize_opencc():
     """初始化 OpenCC 轉換器 (s2t)"""
@@ -205,6 +205,7 @@ def import_anki_data(filepath):
         with open(filepath, 'r', encoding='utf-8') as f:
             reader = csv.reader(f, delimiter='\t')
             
+            # 跳過 Anki 導出的前兩行 (通常是標籤或卡片名稱)
             for _ in range(2): 
                 try: next(reader) 
                 except StopIteration: return
@@ -223,21 +224,24 @@ def import_anki_data(filepath):
                 
                 # --- 數據清理與正規化 ---
                 
+                # 🚨 修正點：移除 term_raw 中的 [...] 內容 (Furigana)
+                # 例如: "脅[おびや]かす" -> "脅かす"
+                term = re.sub(r'\[.+?\]', '', term_raw).strip() 
+                
                 pos_list_cleaned = map_pos_codes(pos_raw) 
                 
-                # 🚨 關鍵修正：確保使用 s2t_converter 進行轉換
+                # 確保使用 s2t_converter 進行轉換
                 explanation_tc = explanation_raw
                 if s2t_converter:
                     explanation_tc = s2t_converter.convert(explanation_raw)
                 
                 example_sentence = re.sub(r'\[.+?\]', '', example_raw).strip()
-                term = term_raw
                 
                 # 1. 插入到 vocab_table
                 cursor.execute("""
                     INSERT INTO vocab_table (term, explanation, example_sentence)
                     VALUES (?, ?, ?)
-                """, (term, explanation_tc, example_sentence)) 
+                """, (term, explanation_tc, example_sentence)) # 注意這裡使用的是修正後的 term
                 
                 vocab_id = cursor.lastrowid 
                 vocab_imported_count += 1
