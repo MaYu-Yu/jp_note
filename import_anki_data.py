@@ -11,7 +11,7 @@ DB_NAME = 'jp_db.db'
 
 # 🚨 詞性代碼映射字典 (處理 Anki 細分類/非標準詞性)
 POS_CODE_MAPPER = {
-    # 細分類統一到主分類
+    # 細分類統一到主分類 (對應 app.py MASTER_POS_LIST)
     '自動1': '自動', 
     '自動2': '自動', 
     '自動3': '自動',
@@ -19,59 +19,124 @@ POS_CODE_MAPPER = {
     '他動2': '他動', 
     '他動3': '他動',
     
+    # 新增 自他動 映射
+    '自他動1': '自他動', 
+    '自他動2': '自他動', 
+    '自他動3': '自他動',
+    
+    # 🚨 修正 #1: 處理 Anki 數據常見的片假名與其他非標準稱呼
+    'イ形': 'い形',   # 片假名 'イ形' 映射到 平假名 'い形'
+    'ナ形': 'ナ形',   # 片假名 'ナ形' 映射到 平假名 'ナ形' (N4、N5檔案中是片假名)
+    '形': 'い形',     
+    '補動': '動',    
+    
     # 非標準或複合詞的統一處理 (如果 Anki 有出現)
-    '補動': '動',    # 補足動詞 (例如：〜てくれる) -> 歸類為動詞
-    '形': 'い形',   # 泛指形容詞 -> 歸類為 い形
-    '不': 'Other',   # 不詳
-    '英': 'Other',   # 英文
+    '名詞': '名',     # 處理可能出現的完整名稱
+    '接頭': '接頭',   # 確保接頭被正確歸類
     
     # 確保所有 MASTER_POS_LIST 簡稱自己映射到自己
-    '名': '名', '專': '專', '數': '數', '代': '代', 
-    '動': '動', '自動': '自動', '他動': '他動', 
-    'い形': 'い形', 'ナ形': 'ナ形',
-    '副': '副', '連体詞': '連体詞', '接': '接', '感': '感', 
-    '助詞': '助詞', '助動詞': '助動詞', '接尾': '接尾', '接頭': '接頭',
+    '名': '名', 
+    '專': '專', 
+    '數': '數', 
+    '代': '代', 
+    '動': '動', # 主動詞
+    '自動': '自動', 
+    '他動': '他動', 
+    '自他動': '自他動', 
+    'い形': 'い形', 
+    'ナ形': 'ナ形',
+    '副': '副', 
+    '連体詞': '連体詞', 
+    '連体': '連体詞',
+    '接': '接續', 
+    '感': '感嘆', 
+    '助詞': '助詞', 
+    '助動詞': '助動詞', 
+    '接尾': '接尾', 
+    '接頭': '接頭',
+    'Other': 'Other', 
 }
 
-# 初始化 OpenCC 轉換器 (保持不變)
-try:
-    s2t = OpenCC('s2t') 
-except Exception as e:
-    print("OpenCC 初始化失敗！請確認已執行 'pip install opencc-python-reimplementation'。")
-    print(f"錯誤信息: {e}")
-    # 這裡不 exit(1)，以防系統允許運行，但用戶沒有 opencc 需求
-    # sys.exit(1)
+# 詞性繼承/層次結構規則 (不變)
+POS_INHERITANCE_RULES = {
+    '自動': '動',
+    '他動': '動',
+    '自他動': '動',
+}
+
+
+# --- OpenCC 初始化 (修正區) ---
+
+def initialize_opencc():
+    """初始化 OpenCC 轉換器 (s2t)"""
+    try:
+        # 使用 's2t' (Simplified Chinese to Traditional Chinese)
+        print("💡 嘗試初始化 OpenCC 繁簡轉換器...")
+        return OpenCC('s2t')
+    except Exception as e:
+        print("🚨 OpenCC 初始化失敗！請確認已執行 'pip install opencc-python-reimplementation'。")
+        print(f"錯誤詳情: {e}")
+        return None
+
+# 初始化 OpenCC 轉換器，並將實例儲存為全域變數
+s2t_converter = initialize_opencc() 
+
+# -------------------------------
+
 
 def get_db_connection():
-    """與 app.py 相同的資料庫連線函數。"""
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
-# 🚨 修正點：重新加入 get_or_create_category 函數
+# --- 輔助函數 (get_or_create_category, get_or_create_pos, map_pos_codes 不變) ---
 def get_or_create_category(conn, category_name):
-    """
-    檢查分類是否存在。如果不存在，則創建它並返回其 ID。
-    """
     cursor = conn.cursor()
-    # 1. 檢查分類是否已存在
     cursor.execute("SELECT id FROM category_table WHERE name = ?", (category_name,))
     row = cursor.fetchone()
-    
     if row:
         return row[0]
-    
-    # 2. 如果不存在，則創建它
     cursor.execute("INSERT INTO category_table (name) VALUES (?)", (category_name,))
     conn.commit()
     return cursor.lastrowid
-# --- 轉換函數 ---
+    
+    
+def get_or_create_pos(name, conn):
+    if not name: return None
+    name = name.strip()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM pos_master_table WHERE name = ?', (name,))
+    pos_id_row = cursor.fetchone()
+    if pos_id_row:
+        return pos_id_row[0]
+    else:
+        try:
+            cursor.execute('INSERT INTO pos_master_table (name) VALUES (?)', (name,))
+            conn.commit() 
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            cursor.execute('SELECT id FROM pos_master_table WHERE name = ?', (name,))
+            pos_id_row = cursor.fetchone()
+            return pos_id_row[0]
+        except Exception as e:
+            print(f"   [ERROR] 創建詞性 {name} 失敗: {e}")
+            return None
+
+
 def map_pos_codes(anki_pos_raw):
     """
-    將 Anki 檔案中的原始詞性（包含複合詞）轉換為 app.py 可識別的日文簡稱列表。
+    將 Anki 原始詞性轉換為簡稱列表，並自動添加父級詞性。
     """
-    # 1. 正規化分隔符號：Anki 檔案可能使用 '・', '/', ',', 或 ' ' 來分隔複合詞性
-    anki_pos_raw = anki_pos_raw.replace('・', ',').replace('/', ',').replace(' ', ',').strip()
+    
+    # 0. A: 移除括號/方括號內的內容，以清理雜項分類
+    # 範例: 'い形(連体)' -> 'い形'
+    anki_pos_raw = re.sub(r'[\(\[].+?[\)\]]', '', anki_pos_raw)
+    
+    # 0. B: 🚨 新增：移除所有空白字元 (空格、tab、換行等隱藏字元)，以確保字串能準確匹配
+    anki_pos_raw = re.sub(r'\s', '', anki_pos_raw) 
+    
+    # 1. 正規化分隔符號：將 Anki 中常見的分隔符統一為逗號
+    anki_pos_raw = anki_pos_raw.replace('・', ',').replace('/', ',').strip()
     
     # 2. 以逗號分隔 Anki 原始詞性，並去除空白
     anki_pos_list = [p.strip() for p in anki_pos_raw.split(',') if p.strip()]
@@ -80,25 +145,38 @@ def map_pos_codes(anki_pos_raw):
     
     for anki_pos in anki_pos_list:
         
-        # 查找映射。如果找不到，則使用它自己作為簡稱。
-        mapped_code = POS_CODE_MAPPER.get(anki_pos, anki_pos) 
+        # 🚨 檢查是否為空，再次清理一次以防萬一
+        anki_pos = anki_pos.strip() 
+        if not anki_pos: continue
         
+        # 關鍵修正：如果找不到 Key，則使用預設值 'Other'
+        mapped_code = POS_CODE_MAPPER.get(anki_pos, 'Other') 
+        
+        if mapped_code == 'Other' and anki_pos != 'Other':
+            # 🚨 Debug 行：輸出被強制轉換為 Other 的原始詞性 (可幫助您未來手動擴展 POS_CODE_MAPPER)
+            print(f"   [DEBUG] 原始詞性 '{anki_pos}' 未在 POS_CODE_MAPPER 中定義，映射為 'Other'")
+        
+        # 3. 檢查並添加父級詞性 (繼承邏輯)
+        
+        # 首先添加詞性本身
         final_pos_set.add(mapped_code)
+        
+        # 然後檢查繼承規則 
+        parent_pos = POS_INHERITANCE_RULES.get(mapped_code)
+        if parent_pos:
+            final_pos_set.add(parent_pos)
             
-    # 3. 確保集合不為空，如果為空則給予預設值 'Other'
+    # 4. 確保集合不為空
     if not final_pos_set:
-        return 'Other'
+        final_pos_set.add('Other')
 
-    # 4. 根據 app.py 的前端預期格式，以 ', ' 連接 (逗號+空格)
-    return ', '.join(sorted(list(final_pos_set))) 
+    # 5. 返回一個列表 (list)
+    return list(final_pos_set) 
 
 
-# --- 核心匯入函數 ---
+# --- 核心匯入函數 (import_anki_data) ---
 
 def import_anki_data(filepath):
-    """
-    從指定的 Anki 檔案匯入單字數據。
-    """
     if not os.path.exists(filepath):
         print(f"❌ 檔案未找到：{filepath}")
         return
@@ -106,27 +184,27 @@ def import_anki_data(filepath):
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 1. 提取並創建分類名稱
     base_name = os.path.basename(filepath)
     category_name = os.path.splitext(base_name)[0]
     
     if not category_name:
         category_name = "Imported Vocab"
 
-    # 🚨 修正點：調用 get_or_create_category (現在它已在上方定義)
     category_id = get_or_create_category(conn, category_name)
     print(f"使用的分類名稱：【{category_name}】，分類 ID：{category_id}")
     
     i = 0
     vocab_imported_count = 0
     category_link_count = 0
+    pos_link_count = 0
+    
+    # 🚨 使用全域 OpenCC 變數 (s2t_converter)
+    global s2t_converter
     
     try:
-        # 使用 'r' 模式，並指定 utf-8 編碼來讀取 Anki 檔案
         with open(filepath, 'r', encoding='utf-8') as f:
             reader = csv.reader(f, delimiter='\t')
             
-            # 跳過 Anki 文件的開頭標記行 (假設有兩行標頭: #separator:tab, #html:false)
             for _ in range(2): 
                 try: next(reader) 
                 except StopIteration: return
@@ -135,7 +213,6 @@ def import_anki_data(filepath):
                 if not row or len(row) < 15: 
                     continue
                 
-                # Anki 欄位索引: 1=Term, 3=POS, 5=Explanation(SC), 10=Example(Raw)
                 term_raw = row[1].strip()       
                 pos_raw = row[3].strip()        
                 explanation_raw = row[5].strip() 
@@ -146,21 +223,21 @@ def import_anki_data(filepath):
                 
                 # --- 數據清理與正規化 ---
                 
-                # 1. 執行詞性代碼轉換
-                pos_cleaned = map_pos_codes(pos_raw) 
+                pos_list_cleaned = map_pos_codes(pos_raw) 
                 
-                # 2. 簡體中文轉換為繁體中文
-                explanation_tc = s2t.convert(explanation_raw)
+                # 🚨 關鍵修正：確保使用 s2t_converter 進行轉換
+                explanation_tc = explanation_raw
+                if s2t_converter:
+                    explanation_tc = s2t_converter.convert(explanation_raw)
                 
-                # 3. 清理例句 (去除 Anki 的發音標記 [ ] )
                 example_sentence = re.sub(r'\[.+?\]', '', example_raw).strip()
                 term = term_raw
                 
                 # 1. 插入到 vocab_table
                 cursor.execute("""
-                    INSERT INTO vocab_table (term, part_of_speech, explanation, example_sentence)
-                    VALUES (?, ?, ?, ?)
-                """, (term, pos_cleaned, explanation_tc, example_sentence)) 
+                    INSERT INTO vocab_table (term, explanation, example_sentence)
+                    VALUES (?, ?, ?)
+                """, (term, explanation_tc, example_sentence)) 
                 
                 vocab_id = cursor.lastrowid 
                 vocab_imported_count += 1
@@ -172,11 +249,25 @@ def import_anki_data(filepath):
                 """, (vocab_id, category_id, 'vocab'))
                 category_link_count += 1
                 
+                # 3. 處理詞性連結表 (item_pos_table)
+                for pos_abbr in pos_list_cleaned:
+                    pos_id = get_or_create_pos(pos_abbr, conn) 
+                    if pos_id:
+                        try:
+                            cursor.execute(
+                                'INSERT INTO item_pos_table (item_id, pos_id) VALUES (?, ?)',
+                                (vocab_id, pos_id)
+                            )
+                            pos_link_count += 1
+                        except sqlite3.IntegrityError:
+                            pass
+                
             conn.commit()
             print("\n----------------------------------------------")
             print(f"✅ 檔案【{category_name}】匯入成功！")
             print(f"   -> 匯入單字總數: {vocab_imported_count} 筆")
-            print(f"   -> 連結到分類的項目數: {category_link_count} 筆")
+            print(f"   -> 分類連結數: {category_link_count} 筆")
+            print(f"   -> 詞性連結數: {pos_link_count} 筆") 
             print("----------------------------------------------")
             
     except Exception as e:
@@ -188,9 +279,7 @@ def import_anki_data(filepath):
 
 if __name__ == '__main__':
     
-    # 🚨 修正點：處理多個命令列參數
     if len(sys.argv) > 1:
-        # 獲取所有從 sys.argv[1] 開始的檔案路徑
         anki_filepaths = sys.argv[1:] 
         
         print(f"\n檢測到 {len(anki_filepaths)} 個檔案，將依序匯入到 {DB_NAME}...")
@@ -203,7 +292,6 @@ if __name__ == '__main__':
         print("==============================================")
         
     else:
-        # 處理沒有參數或只有一個參數的情況
         print("\n--- Anki 檔案路徑設定 ---")
         anki_filepath = input(f"請輸入 Anki 匯出檔案的路徑（例如：C:/Users/.../NEW-JLPT__NEW-N5.txt）：")
 
