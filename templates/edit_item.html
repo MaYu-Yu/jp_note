@@ -54,35 +54,33 @@
 
                     {% if data_type == 'vocab' %}
                     <div class="mb-3">
-                        <label class="form-label fw-bold d-block">詞性</label>
-                        <input type="hidden" id="part_of_speech" name="part_of_speech" value="{{ item.part_of_speech or '' }}">
+                        <label class="form-label fw-bold">詞性 (Part of Speech)</label>
+                        <div class="d-flex flex-wrap gap-2" id="pos-checkbox-group">
+                            {% for pos_raw in master_pos_list %}
+                            {% set pos_abbr = pos_raw.split(' ')[0].strip() %}
 
-                        <div id="vocab-shortcuts" class="mt-2 d-flex flex-wrap gap-2">
-                            {% set current_pos_list = item.part_of_speech.split(',') | map('trim') | list if item.part_of_speech else [] %}
-                            
-                            {% for pos in master_pos_list %}
-                            {% set pos_short = pos.split(' ')[0] %}
-                            
-                            <input type="checkbox" class="btn-check pos-checkbox" id="pos-{{ loop.index }}" autocomplete="off"
-                                data-pos="{{ pos_short }}"
-                                {% if pos_short in current_pos_list %}checked{% endif %}>
-                            <label class="btn btn-sm btn-outline-primary" for="pos-{{ loop.index }}">
-                                {{ pos }}
-                            </label>
+                            {% set is_checked = pos_abbr in item.selected_pos_list %}
+
+                            <input type="checkbox" class="btn-check pos-checkbox" id="pos-{{ pos_abbr }}"
+                                name="selected_pos" value="{{ pos_abbr }}" autocomplete="off" {% if is_checked
+                                %}checked{% endif %}>
+
+                            <label class="btn btn-outline-primary" for="pos-{{ pos_abbr }}" data-pos="{{ pos_abbr }}">{{
+                                pos_raw }}</label>
                             {% endfor %}
                         </div>
-                        <small class="form-text text-muted">點擊上方按鈕可選擇詞性 (可多選)。</small>
                     </div>
                     {% endif %}
 
                     <div class="mb-3">
                         <label for="existing_categories" class="form-label fw-bold d-block">選擇現有分類標籤</label>
                         <div class="d-flex flex-wrap gap-2" id="existing-category-buttons">
-                            {% set current_categories = item.categories.split(',') | map('trim') | list if item.categories else [] %}
+                            {% set current_categories = item.categories.split(',') | map('trim') | list if
+                            item.categories else [] %}
                             {% for cat in all_categories %}
                             <input type="checkbox" class="btn-check" id="cat-{{ cat }}" name="selected_categories"
-                                value="{{ cat }}" autocomplete="off"
-                                {% if cat in current_categories %}checked{% endif %}>
+                                value="{{ cat }}" autocomplete="off" {% if cat in current_categories %}checked{% endif
+                                %}>
                             <label class="btn btn-sm btn-outline-info" for="cat-{{ cat }}">{{ cat }}</label>
                             {% endfor %}
                         </div>
@@ -117,36 +115,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    {% if data_type == 'vocab' %}
-    <script>
-        // 🚨 修正後的 JS 邏輯：編輯頁面的詞性同步
-        document.addEventListener('DOMContentLoaded', () => {
-            const posInput = document.getElementById('part_of_speech'); // 現在是 hidden input
-            const posCheckboxes = document.querySelectorAll('.pos-checkbox'); 
-
-            // 函數：同步選中的詞性到隱藏輸入框
-            function syncPosInput() {
-                let selected = [];
-                posCheckboxes.forEach(cb => {
-                    if (cb.checked) {
-                        // 獲取 data-pos 屬性 (N, V, いA 等)
-                        selected.push(cb.getAttribute('data-pos')); 
-                    }
-                });
-                // 將所有選中的詞性以逗號和空格分隔，寫回隱藏輸入框
-                posInput.value = selected.join(', ');
-            }
-
-            // 監聽所有詞性按鈕的點擊事件
-            posCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', syncPosInput);
-            });
-            
-            // 由於編輯頁面已經透過 Jinja 預選了按鈕，
-            // 載入時不需要執行 syncPosInput，只需在按鈕變動時更新。
-        });
-    </script>
-    {% endif %}
 </body>
 
 </html>
