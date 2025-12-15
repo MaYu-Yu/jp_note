@@ -389,11 +389,10 @@ def add_vocab():
     
     if request.method == 'POST':
         return add_item('vocab')
-
+    
     return render_template('add_vocab.html', 
+                           master_pos_list=MASTER_POS_LIST_RAW,
                            all_categories=get_all_categories(), 
-                           all_pos_raw=MASTER_POS_LIST_RAW,
-                           # 🔑 傳遞給模板
                            initial_category=initial_category 
                           )
 

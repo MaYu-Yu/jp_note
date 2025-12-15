@@ -54,7 +54,9 @@
                             {% for pos_raw in master_pos_list %}
                             {% set pos_abbr = pos_raw.split(' ')[0].strip() %}
                             <input type="checkbox" class="btn-check pos-checkbox" id="pos-{{ pos_abbr }}"
-                                name="selected_pos" value="{{ pos_abbr }}" autocomplete="off">
+                                name="selected_pos" value="{{ pos_abbr }}" autocomplete="off" {% if is_checked
+                                %}checked{% endif %}>
+
                             <label class="btn btn-outline-primary" for="pos-{{ pos_abbr }}" data-pos="{{ pos_abbr }}">{{
                                 pos_raw }}</label>
                             {% endfor %}
