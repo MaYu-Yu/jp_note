@@ -289,7 +289,48 @@ def get_all_categories_with_counts():
     categories = [{'name': row['name'], 'count': row['count']} for row in cursor.fetchall()]
     conn.close()
     return categories
-    
+@app.route('/api/edit_category/<old_name>', methods=['POST'])
+def api_edit_category(old_name):
+    """API 路由：編輯分類名稱。"""
+    conn = get_db_connection()
+    try:
+        data = request.get_json()
+        new_name = data.get('new_name', '').strip()
+
+        if not new_name:
+            return jsonify({'success': False, 'message': '新的分類名稱不能為空'}), 400
+        
+        if new_name == old_name:
+            # 檢查舊名稱是否真的存在
+            cursor = conn.cursor()
+            cursor.execute('SELECT id FROM category_table WHERE name = ?', (old_name,))
+            if cursor.fetchone():
+                 return jsonify({'success': True, 'message': '名稱未更改'}), 200 # 無需變更
+            else:
+                 return jsonify({'success': False, 'message': '原分類不存在'}), 404
+
+        cursor = conn.cursor()
+        
+        # 檢查新的分類名稱是否已存在 (避免唯一性約束錯誤)
+        cursor.execute('SELECT id FROM category_table WHERE name = ?', (new_name,))
+        if cursor.fetchone():
+            return jsonify({'success': False, 'message': f'分類名稱「{new_name}」已存在。'}), 409
+
+        # 1. 更新 category_table 中的名稱 (item_category_table 會通過外鍵關係保持正確)
+        cursor.execute('UPDATE category_table SET name = ? WHERE name = ?', (new_name, old_name))
+        
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'message': '分類不存在或無法找到'}), 404
+
+        conn.commit()
+        flash(f'分類名稱已從「{old_name}」成功更改為「{new_name}」！', 'success')
+        return jsonify({'success': True})
+    except sqlite3.Error as e:
+        conn.rollback()
+        # 由於已檢查，此處主要處理其他可能的資料庫錯誤
+        return jsonify({'success': False, 'message': f'資料庫錯誤: {e}'}), 500
+    finally:
+        conn.close()
 @app.route('/api/delete_category/<category_name>', methods=['POST'])
 def api_delete_category(category_name):
     conn = get_db_connection()
@@ -417,109 +458,132 @@ def list_page(data_type, page):
     if data_type not in ['vocab', 'grammar']:
         flash('無效的資料類型!', 'danger')
         return redirect(url_for('home'))
-
+        
     conn = get_db_connection()
     table_name = get_table_name(data_type)
     current_category = request.args.get('category')
     search_term = request.args.get('search')
-    
     limit_param = request.args.get('limit')
     
+    # NEW: 獲取排序參數
+    sort_by = request.args.get('sort_by', 'id') # 預設依 ID 排序
+    sort_order = request.args.get('sort_order', 'DESC').upper() # 預設降序
+
+    # 設置分頁
     current_limit = PER_PAGE
     is_show_all = False
-    
-    if limit_param in ['0', 'all']: 
+    if limit_param in ['0', 'all']:
         is_show_all = True
-        page = 1           
-        offset = 0         
+        page = 1
+        offset = 0
     else:
-        offset = (page - 1) * current_limit
-    
-    # 1. 構建 WHERE 條件 (需調整以適應 category 篩選)
-    where_clauses = []
+        try:
+            current_page = int(page)
+            offset = (current_page - 1) * current_limit
+        except ValueError:
+            current_page = 1
+            offset = 0
+            
+    # ------------------ 構建查詢條件 ------------------
+    where_clauses = ["1=1"]
     params = []
-    
-    # 設置別名以避免歧義，尤其是當使用 JOIN 時
+    join_clause = ''
     term_column = 'T.term'
     
+    # 處理排序欄位和順序 (防止 SQL 注入)
+    valid_sort_columns = ['id', 'term', 'explanation', 'example_sentence']
+    if sort_by not in valid_sort_columns:
+        sort_by = 'id'
+    if sort_order not in ['ASC', 'DESC']:
+        sort_order = 'DESC'
+        
+    order_by_clause = f"ORDER BY T.{sort_by} {sort_order}"
+
     # Category 篩選的邏輯 (使用 JOIN)
     if current_category:
         category_row = conn.execute("SELECT id FROM category_table WHERE name = ?", (current_category,)).fetchone()
         if category_row:
             category_id = category_row['id']
-            # 使用子查詢來過濾
-            where_clauses.append(f"T.id IN (SELECT item_id FROM item_category_table WHERE category_id = ? AND item_type = ?)")
-            params.extend([category_id, data_type])
-            
-    # Search 篩選的邏輯 (假設搜尋欄位為 term, explanation, example_sentence)
-    if search_term:
-        search_like = f'%{search_term}%'
-        where_clauses.append(f"({term_column} LIKE ? OR T.explanation LIKE ? OR T.example_sentence LIKE ?)")
-        params.extend([search_like, search_like, search_like])
+            # 使用 JOIN for simplicity and better performance for filtering
+            join_clause = f"JOIN item_category_table AS JC ON T.id = JC.item_id AND JC.item_type = '{data_type}'"
+            where_clauses.append("JC.category_id = ?")
+            params.append(category_id)
+        else:
+            # 分類不存在，返回空清單但需保留排序參數
+            return render_template('list_template.html', data_type=data_type, items=[], current_page=1, total_pages=0, total_items=0, current_category=current_category, search_term=search_term, per_page=current_limit, show_all_mode=is_show_all, sort_by=sort_by, sort_order=sort_order)
 
-    where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+    # Search term 篩選
+    if search_term:
+        where_clauses.append(f"({term_column} LIKE ? OR T.explanation LIKE ? OR T.example_sentence LIKE ?)")
+        search_pattern = f'%{search_term}%'
+        params.extend([search_pattern, search_pattern, search_pattern])
+
+
+    # 1. 獲取總筆數
+    count_query = f"SELECT COUNT(DISTINCT T.id) FROM {table_name} AS T {join_clause} WHERE {' AND '.join(where_clauses)}"
+    total_items = conn.execute(count_query, params).fetchone()[0]
+
     
-    # 2. 獲取總數
-    count_sql = f"SELECT COUNT(*) FROM {table_name} T {where_sql}"
-    total_count = conn.execute(count_sql, params).fetchone()[0]
-    
-    # 3. 執行主要的資料查詢
-    # 🚨 關鍵修改: 單字表不再有 part_of_speech，必須手動查詢並附加
-    if data_type == 'vocab':
-        # 查詢主表欄位，並用 '' 填充 part_of_speech 以便後續處理 (或移除 part_of_speech 欄位，稍後單獨查詢)
-        select_columns = "T.*"
+    # 2. 計算分頁
+    if total_items == 0:
+        total_pages = 0
     else:
-        select_columns = "T.*"
-        
-    sql_query = f"SELECT {select_columns} FROM {table_name} T {where_sql} ORDER BY T.id DESC"
-    
-    query_params = list(params) 
-    
-    if is_show_all:
-        total_pages = 1
-    else:
-        total_pages = math.ceil(total_count / current_limit) if total_count > 0 else 1
-        page = min(page, total_pages) if total_pages > 0 else 1 
+        total_pages = math.ceil(total_items / current_limit)
+
+    # 確保頁碼不過界
+    if page > total_pages and total_pages > 0:
+        page = total_pages
         offset = (page - 1) * current_limit
         
-        sql_query += " LIMIT ? OFFSET ?"
-        query_params.extend([current_limit, offset])
+    current_page = page if total_pages > 0 else 1
 
-    # 執行查詢
-    items = conn.execute(sql_query, query_params).fetchall()
+
+    # 3. 構建主查詢
+    # 主查詢 (加入 ORDER BY)
+    main_query_base = f"""
+        SELECT DISTINCT T.id, T.term, T.explanation, T.example_sentence
+        FROM {table_name} AS T
+        {join_clause}
+        WHERE {' AND '.join(where_clauses)}
+        {order_by_clause} 
+    """
     
-    # 4. 附加分類和詞性資訊
-    items_list = []
-    for item in items:
-        item_dict = dict(item)
-        item_dict['categories'] = get_item_categories_string(item_dict['id'], data_type)
-        if data_type == 'vocab':
-            # 🚨 關鍵：獲取新的詞性字串
-            item_dict['part_of_speech'] = get_item_pos_string(item_dict['id'])
-        items_list.append(item_dict)
+    main_params = params[:] # 複製參數列表
+    
+    if not is_show_all:
+        main_query = main_query_base + " LIMIT ? OFFSET ?"
+        main_params.extend([current_limit, offset])
+    else:
+        main_query = main_query_base
         
+
+    cursor = conn.execute(main_query, main_params)
+    raw_items = cursor.fetchall()
+
+    # 4. 處理項目 (新增分類和詞性)
+    items = []
+    for item in raw_items:
+        item_dict = dict(item)
+        item_id = item['id']
+        item_dict['categories'] = get_item_categories_string(item_id, data_type)
+        if data_type == 'vocab':
+            # 獲取詞性字串
+            item_dict['pos_string'] = get_item_pos_string(item_id)
+        items.append(item_dict)
+
     conn.close()
 
-    return render_template('list_template.html',
-                           data_type=data_type,
-                           items=items_list,
-                           current_page=page,
-                           total_pages=total_pages,
-                           per_page=PER_PAGE, 
-                           current_category=current_category,
-                           search_term=search_term,
-                           show_all_mode=is_show_all 
-                           )
-
-@app.route('/list/vocab')
-def list_vocab():
-    # 由於 list_page 已經處理了所有邏輯，這裡只是轉發
-    return list_page('vocab')
-
-@app.route('/list/grammar')
-def list_grammar():
-    return list_page('grammar')
-
+    # 5. Render template (傳遞排序參數)
+    return render_template('list_template.html', 
+                           data_type=data_type, items=items, 
+                           current_page=current_page, total_pages=total_pages, 
+                           total_items=total_items, current_category=current_category, 
+                           search_term=search_term, per_page=current_limit,
+                           show_all_mode=is_show_all,
+                           # NEW: 傳遞排序資訊到模板
+                           sort_by=sort_by, 
+                           sort_order=sort_order)
 # ----------------- 編輯 (MODIFIED) -----------------
 
 @app.route('/edit/<data_type>/<int:item_id>', methods=['GET', 'POST'])

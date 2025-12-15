@@ -28,73 +28,133 @@
             z-index: 10;
             line-height: 1; 
             padding: 0.5rem; /* 增加按鈕內邊距 */
-            /* 使用標準 btn 替代 btn-sm */
+        }
+        /* NEW: 編輯按鈕位置 */
+        .edit-btn-overlay {
+            position: absolute;
+            top: 10px; 
+            right: 55px; /* 往左移以與刪除按鈕錯開 */
+            z-index: 10;
+            line-height: 1;
+            padding: 0.5rem;
         }
         /* 讓圖標本身更大 */
         .delete-btn-overlay .fa-trash {
             font-size: 1.2rem; /* 自定義更大的圖標大小 */
         }
+        /* NEW: 讓編輯圖標本身更大 */
+        .edit-btn-overlay .fa-edit {
+            font-size: 1.2rem;
+        }
     </style>
 </head>
 <body>
     <div class="container mt-5">
-        <h1 class="mb-5 text-center">🏷️ 所有分類總覽與管理</h1>
-        <div class="mb-4 d-flex gap-2">
-            <button onclick="history.back()" class="btn btn-secondary mb-3 ms-2">← 返回上頁</button>
+        <h1 class="mb-5 text-center">🏷️ 分類總覽與管理</h1>
+        <div class="mb-4 d-flex gap-2 justify-content-center">
             <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3 ms-2">🏠 返回首頁</a>
+            <a href="{{ url_for('add_vocab') }}" class="btn btn-success mb-3 ms-2">＋ 新增單字</a>
+            <a href="{{ url_for('add_grammar') }}" class="btn btn-info mb-3 ms-2">＋ 新增文法</a>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-3">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
+        {% if messages %}
+        <div class="alert alert-info">
+            {% for category, message in messages %}
+            <p class="mb-0">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endwith %}
 
         {% if categories %}
-        <p class="text-muted">
-            點擊分類卡片可查看包含該標籤的 **單字** 記錄。點擊右上角的 <i class="fas fa-trash"></i> **刪除** 按鈕可移除分類。
-        </p>
-        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-4">
+        <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
             {% for category in categories %}
             <div class="col">
-                <div class="card h-100 shadow-sm border-info category-card">
-                    
-                    <button class="btn btn-danger delete-category-btn delete-btn-overlay" 
-                            data-category="{{ category.name }}" 
-                            title="從所有記錄中移除此分類">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    
-                    <a href="{{ url_for('list_page', data_type='vocab', category=category.name) }}" class="category-link d-block h-100">
+                <div class="category-card card text-white bg-info mb-3 shadow">
+                    <a href="{{ url_for('list_page', data_type='vocab', category=category.name) }}" class="category-link">
                         <div class="card-body">
-                            <h5 class="card-title text-info">{{ category.name }}</h5>
-                            <p class="card-text small">
-                                單字: <span class="badge bg-primary">{{ category.vocab_count }}</span>
-                                文法: <span class="badge bg-success">{{ category.grammar_count }}</span>
-                            </p>
+                            <h5 class="card-title">{{ category.name }}</h5>
+                            <p class="card-text">共 {{ category.count }} 筆</p>
                         </div>
                     </a>
+                    
+                    <button class="edit-btn-overlay btn btn-sm btn-light p-1" data-category="{{ category.name }}" title="編輯分類名稱">
+                        <i class="fas fa-edit text-primary"></i>
+                    </button>
+                    
+                    <button class="delete-btn-overlay btn btn-sm btn-light p-1" data-category="{{ category.name }}" title="刪除此分類">
+                        <i class="fas fa-trash text-danger"></i>
+                    </button>
                 </div>
             </div>
             {% endfor %}
         </div>
         {% else %}
-        <div class="alert alert-warning text-center" role="alert">
-            目前沒有任何分類資料。請在新增/編輯時添加分類標籤（以逗號分隔）。
+        <div class="alert alert-warning text-center">
+            目前沒有任何分類。請在新增單字或文法時建立分類。
         </div>
         {% endif %}
+
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const deleteButtons = document.querySelectorAll('.delete-category-btn');
+        
+        // NEW: 編輯按鈕邏輯
+        const editButtons = document.querySelectorAll('.edit-btn-overlay');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.stopPropagation();
+                event.preventDefault(); 
+                
+                const oldName = this.getAttribute('data-category');
+                
+                // 彈出輸入框讓使用者輸入新的分類名稱
+                const newName = prompt(`編輯分類「${oldName}」。請輸入新的名稱：`, oldName);
 
+                if (newName === null || newName.trim() === '') {
+                    alert('編輯取消或新名稱為空。');
+                    return;
+                }
+                
+                if (newName.trim() === oldName) {
+                    alert('名稱未更改。');
+                    return;
+                }
+                
+                // 呼叫後端 API 進行更新
+                fetch(`/api/edit_category/${encodeURIComponent(oldName)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ new_name: newName.trim() })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        // 嘗試從響應中讀取詳細錯誤信息
+                        return response.json().then(err => { throw new Error(err.message || `HTTP 錯誤! 狀態: ${response.status}`); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload(); // 成功後重新載入頁面
+                    } else {
+                        alert('編輯失敗: ' + (data.message || '未知錯誤'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('編輯過程中發生錯誤。請檢查伺服器連線。\n詳細錯誤: ' + error.message);
+                });
+            });
+        });
+
+        // 原本的刪除按鈕邏輯 (保持不變)
+        const deleteButtons = document.querySelectorAll('.delete-btn-overlay');
         deleteButtons.forEach(button => {
             button.addEventListener('click', function(event) {
                 event.stopPropagation();
