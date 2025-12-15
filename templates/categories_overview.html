@@ -39,7 +39,10 @@
 <body>
     <div class="container mt-5">
         <h1 class="mb-5 text-center">🏷️ 所有分類總覽與管理</h1>
-        <a href="{{ url_for('home') }}" class="btn btn-secondary mb-4">← 返回首頁</a>
+        <div class="mb-4 d-flex gap-2">
+            <button onclick="history.back()" class="btn btn-secondary mb-3 ms-2">← 返回上頁</button>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3 ms-2">🏠 返回首頁</a>
+        </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}

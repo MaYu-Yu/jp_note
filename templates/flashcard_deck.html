@@ -26,8 +26,8 @@
             max-width: 900px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             border-radius: 0.5rem;
-            min-height: 450px; 
-            display: flex; 
+            min-height: 450px;
+            display: flex;
             flex-direction: column;
         }
 
@@ -43,19 +43,19 @@
         }
 
         .card-body {
-            flex-grow: 1; 
-            display: flex; 
+            flex-grow: 1;
+            display: flex;
             flex-direction: column;
-            justify-content: space-between; 
+            justify-content: space-between;
             padding: 2rem;
-            text-align: center; 
+            text-align: center;
         }
 
         /* 第一行: 日語、詞性、語音 (置中對齊) */
         .term-line {
             display: flex;
             align-items: center;
-            justify-content: center; 
+            justify-content: center;
             margin-bottom: 1.5rem;
             border-bottom: 1px solid #ddd;
             padding-bottom: 1.5rem;
@@ -69,15 +69,16 @@
             margin: 0;
             line-height: 1.2;
         }
-        
+
         .explanation-line,
         .example-line {
-            text-align: left; 
+            text-align: left;
         }
 
         /* 調整徽章和按鈕在 Term 旁邊的位置 */
-        .pos-badge, .tts-button {
-            margin-left: 10px; 
+        .pos-badge,
+        .tts-button {
+            margin-left: 10px;
         }
 
         .pos-badge {
@@ -105,14 +106,14 @@
             color: #6c757d;
             margin-bottom: 0.25rem;
             font-size: 1.1rem;
-            text-align: left; 
+            text-align: left;
         }
 
         .content-text {
             margin-bottom: 1rem;
             font-size: 1.1rem;
             line-height: 1.6;
-            text-align: left; 
+            text-align: left;
         }
 
         .explanation-style {
@@ -136,18 +137,18 @@
         .control-row-nav-internal {
             display: flex;
             width: 100%;
-            justify-content: space-between; 
+            justify-content: space-between;
             gap: 15px;
             padding-top: 1rem;
             border-top: 1px solid #ddd;
-            margin-top: auto; 
+            margin-top: auto;
         }
 
         .control-row-nav-internal .btn-lg {
             flex-grow: 1;
-            max-width: 48%; 
+            max-width: 48%;
         }
-        
+
         /* 外部控制項：佈局調整：卡片下方的按鈕群組 */
         .control-row-main {
             width: 95%;
@@ -157,11 +158,11 @@
             align-items: center;
             gap: 15px;
         }
-        
+
         /* 重複使用原有的居中群組樣式 */
         .control-row-center {
             display: flex;
-            flex-wrap: wrap; 
+            flex-wrap: wrap;
             gap: 15px;
             justify-content: center;
             align-items: center;
@@ -170,7 +171,7 @@
         .autoplay-controls .form-select {
             width: 100px;
         }
-        
+
         /* 讓 collapse 內容不會被 flex 容器壓縮 */
         .collapse:not(.show) {
             flex-shrink: 0;
@@ -224,53 +225,54 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="control-row-nav-internal">
-                            <button id="prev-btn" class="btn btn-warning btn-lg" onclick="navigateCard(-1)">← 上一張</button>
-                            <button id="next-btn" class="btn btn-success btn-lg" onclick="handleNextClick()">下一張/看答案 →</button>
+                            <button id="prev-btn" class="btn btn-warning btn-lg" onclick="navigateCard(-1)">←
+                                上一張</button>
+                            <button id="next-btn" class="btn btn-success btn-lg" onclick="handleNextClick()">下一張/看答案
+                                →</button>
                         </div>
 
                     </div>
                 </div>
-            </div>
-        </div>
+                <div class="control-row-main mt-4">
 
-        <div class="control-row-main mt-4">
-            
-            <div class="control-row-center">
-                <a href="{{ url_for('flashcard_select') }}" class="btn btn-secondary me-3">⚙️ 重設牌組</a>
+                    <div class="control-row-center">
+                        <button onclick="history.back()" class="btn btn-secondary">← 返回上頁</button>
+                        <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
+                        <div class="autoplay-controls d-flex flex-nowrap align-items-center">
+                            <select id="interval-select" class="form-select w-auto me-2">
+                                <option value="1000">1 秒</option>
+                                <option value="2000">2 秒</option>
+                                <option value="3000">3 秒</option>
+                                <option value="4000">4 秒</option>
+                                <option value="5000" selected>5 秒</option>
+                                <option value="6000">6 秒</option>
+                                <option value="7000">7 秒</option>
+                                <option value="8000">8 秒</option>
+                                <option value="9000">9 秒</option>
+                                <option value="10000">10 秒</option>
+                            </select>
+                            <button id="play-pause-btn" class="btn btn-primary" onclick="toggleAutoPlay()">▶️
+                                自動播放</button>
+                        </div>
 
-                <div class="autoplay-controls d-flex flex-nowrap align-items-center">
-                    <select id="interval-select" class="form-select w-auto me-2">
-                        <option value="1000">1 秒</option>
-                        <option value="2000">2 秒</option>
-                        <option value="3000">3 秒</option>
-                        <option value="4000">4 秒</option>
-                        <option value="5000" selected>5 秒</option>
-                        <option value="6000">6 秒</option>
-                        <option value="7000">7 秒</option>
-                        <option value="8000">8 秒</option>
-                        <option value="9000">9 秒</option>
-                        <option value="10000">10 秒</option>
-                    </select>
-                    <button id="play-pause-btn" class="btn btn-primary" onclick="toggleAutoPlay()">▶️ 自動播放</button>
+                        <button id="replay-btn" class="btn btn-info" onclick="speakFullAnswerWithCancel()">🔊
+                            重唸答案</button>
+
+                    </div>
+
+                    <div class="control-row-center mt-3">
+                        <label for="jump-to-input" class="form-label mb-0 fw-bold">跳轉至筆數:</label>
+                        <input type="number" id="jump-to-input" class="form-control"
+                            style="width: 100px; text-align: center;" min="1" max="{{ total_count }}"
+                            value="{{ current_index + 1 }}" aria-label="跳轉筆數">
+                        <button class="btn btn-primary" onclick="jumpToCard()">GO</button>
+                        <small class="text-muted">(1 - {{ total_count }})</small>
+                    </div>
                 </div>
-
-                <button id="replay-btn" class="btn btn-info" onclick="speakFullAnswerWithCancel()">🔊 重唸答案</button>
-
             </div>
-
-            <div class="control-row-center mt-3">
-                <label for="jump-to-input" class="form-label mb-0 fw-bold">跳轉至筆數:</label>
-                <input type="number" id="jump-to-input" class="form-control" style="width: 100px; text-align: center;"
-                    min="1" max="{{ total_count }}" value="{{ current_index + 1 }}" aria-label="跳轉筆數">
-                <button class="btn btn-primary" onclick="jumpToCard()">GO</button>
-                <small class="text-muted">(1 - {{ total_count }})</small>
-            </div>
-
-
         </div>
-
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -294,8 +296,8 @@
         const exampleElement = document.getElementById('card-example');
         const contentCollapse = document.getElementById('explanation-content');
         const typeInfoElement = document.getElementById('card-type-info');
-        const termLine = document.getElementById('term-line-clickable'); 
-        const headerElement = document.getElementById('flashcard-header'); 
+        const termLine = document.getElementById('term-line-clickable');
+        const headerElement = document.getElementById('flashcard-header');
         const nextButton = document.getElementById('next-btn');
         const jumpInput = document.getElementById('jump-to-input');
 
@@ -314,7 +316,7 @@
         // =================================================================
 
         /**
-         * 停止自動播放循環和語音，並重設按鈕狀態。
+         * 停止自動播放循環和語音。
          * @param {boolean} updateButton - 是否更新按鈕文字和啟用間隔選擇器。
          */
         function stopAutoPlayLoop(updateButton = true) {
@@ -339,14 +341,14 @@
         /**
          * 執行語音播放。
          */
-        function speakText(text, lang, callback = () => {}) {
+        function speakText(text, lang, callback = () => { }) {
             if (!('speechSynthesis' in window) || !text || text.trim() === '') {
                 callback();
                 return;
             }
 
             let textToSpeak = text.trim();
-            
+
             // 處理日語文本，只讀取主要單字/文法，忽略 + 號後的資訊
             if (lang === 'ja-JP') {
                 const match = textToSpeak.match(/\[([^\]]+)\]/);
@@ -383,7 +385,7 @@
         /**
          * 核心TTS函數：依序播放日語 Term, 中文解釋, 日語例句
          */
-        function speakFullAnswer(callback = () => {}) {
+        function speakFullAnswer(callback = () => { }) {
             if (!currentCardData || currentCardData.type === 'error') {
                 callback();
                 return;
@@ -419,7 +421,7 @@
 
             setTimeout(() => {
                 // 🚨 修正點：在開始播放前再次強制取消，確保中斷正在播放或尚未開始的語音。
-                window.speechSynthesis.cancel(); 
+                window.speechSynthesis.cancel();
                 speakFullAnswer(() => { /* do nothing */ });
             }, 500);
         }
@@ -428,7 +430,7 @@
          * 翻譯前停止自動播放
          */
         function openGoogleTranslate(text) {
-            stopAutoPlayLoop(true); 
+            stopAutoPlayLoop(true);
             window.speechSynthesis.cancel();
             const encodedText = encodeURIComponent(text);
             const url = `https://translate.google.com/?sl=ja&tl=zh-TW&text=${encodedText}&op=translate`;
@@ -472,7 +474,7 @@
         function renderCard(card, autoSpeak = false) {
             currentCardData = card;
             indexDisplay.textContent = `第 ${current_index + 1} / ${total_count} 筆`;
-            jumpInput.value = current_index + 1; 
+            jumpInput.value = current_index + 1;
 
             termElement.textContent = card.term || 'N/A';
             posElement.textContent = card.part_of_speech || '';
@@ -507,7 +509,7 @@
                 await fetchAndCacheBatch(newBatchStart);
             }
 
-            current_index = newIndex; 
+            current_index = newIndex;
 
             // 2. 從緩存中取出卡片
             const card = cardCache[current_index - currentBatchStart];
@@ -563,7 +565,7 @@
          * 跳轉至指定筆數
          */
         async function jumpToCard() {
-            stopAutoPlayLoop(true); 
+            stopAutoPlayLoop(true);
             window.speechSynthesis.cancel();
 
             const target = parseInt(jumpInput.value);
@@ -720,7 +722,7 @@
             if (cardCache.length === 0 && total_count > 0) {
                 // 根據從伺服器獲得的 current_index 決定應該從哪一筆開始載入快取
                 const requiredBatchStart = Math.floor(current_index / BATCH_SIZE) * BATCH_SIZE;
-                
+
                 await fetchAndCacheBatch(requiredBatchStart);
             }
 
@@ -728,12 +730,12 @@
             const initialCard = cardCache[current_index - currentBatchStart];
             if (initialCard) {
                 // 🚨 修正點：初始載入時也播放 Term 語音 (true)
-                renderCard(initialCard, true); 
+                renderCard(initialCard, true);
 
                 // 3. 綁定個別語音按鈕，並在點擊時停止自動播放
                 document.getElementById('term-tts-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    stopAutoPlayLoop(true); 
+                    stopAutoPlayLoop(true);
                     if (currentCardData && currentCardData.term) {
                         // 播放前取消所有語音
                         window.speechSynthesis.cancel();
@@ -743,7 +745,7 @@
 
                 document.getElementById('example-tts-btn').addEventListener('click', (e) => {
                     e.stopPropagation();
-                    stopAutoPlayLoop(true); 
+                    stopAutoPlayLoop(true);
                     if (currentCardData && currentCardData.example_sentence) {
                         // 播放前取消所有語音
                         window.speechSynthesis.cancel();

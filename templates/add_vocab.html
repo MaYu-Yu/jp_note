@@ -25,7 +25,10 @@
 <body>
     <div class="container mt-5">
         <h1 class="mb-4">✏️ 新增日語單字</h1>
-        <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回總覽</a>
+        <div class="mb-4 d-flex gap-2">
+            <button onclick="history.back()" class="btn btn-secondary mb-3 ms-2">← 返回上頁</button>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3 ms-2">🏠 返回首頁</a>
+        </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -75,7 +78,7 @@
                         <div class="d-flex flex-wrap gap-2" id="existing-category-buttons">
                             {% for cat in all_categories %}
                             <input type="checkbox" class="btn-check" id="cat-{{ cat }}" name="selected_categories"
-                                value="{{ cat }}" autocomplete="off">
+                                value="{{ cat }}" autocomplete="off" {% if cat==initial_category %}checked{% endif %}>
                             <label class="btn btn-sm btn-outline-info" for="cat-{{ cat }}">{{ cat }}</label>
                             {% endfor %}
                         </div>

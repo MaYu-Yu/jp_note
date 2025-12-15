@@ -44,17 +44,28 @@
         {% endif %}
         {% endwith %}
 
-        <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3">← 返回首頁</a>
-        <a href="{{ url_for('add_vocab') if data_type == 'vocab' else url_for('add_grammar') }}"
-            class="btn btn-success mb-3 ms-2">＋ 新增</a>
-        <a href="{{ url_for('list_page', data_type=data_type, category=current_category, search=search_term, limit='all') }}"
-            class="btn btn-danger mb-3 ms-2 {% if show_all_mode %}d-none{% endif %}">
-            💥 顯示全部 (請注意效能)
-        </a>
-        <a href="{{ url_for('list_page', data_type=data_type, category=current_category, search=search_term) }}"
-            class="btn btn-success mb-3 ms-2 {% if not show_all_mode %}d-none{% endif %}">
-            🔙 返回分頁模式 ({{ per_page }} 筆/頁)
-        </a>
+        <div class="mb-2 d-flex gap-2">
+            <button onclick="history.back()" class="btn btn-secondary mb-3 ms-2">← 返回上頁</button>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3 ms-2">🏠 返回首頁</a>
+            {% set add_route = 'add_vocab' if data_type == 'vocab' else 'add_grammar' %}
+
+            {% set add_url = url_for(add_route, category=current_category) if current_category else url_for(add_route)
+            %}
+
+            <a href="{{ add_url }}" class="btn btn-success mb-3 ms-2">＋ 新增</a>
+
+            <a href="{{ url_for('list_page', data_type=data_type, category=current_category, search=search_term, limit='all') }}"
+                class="btn btn-danger mb-3 ms-2 {% if show_all_mode %}d-none{% endif %}">
+                💥 顯示全部 (請注意效能)
+            </a>
+            <a href="{{ url_for('list_page', data_type=data_type, category=current_category, search=search_term) }}"
+                class="btn btn-success mb-3 ms-2 {% if not show_all_mode %}d-none{% endif %}">
+                🔙 返回分頁模式 ({{ per_page }} 筆/頁)
+            </a>
+        </div>
+
+
+
         <div class="d-flex align-items-center mb-3">
             <span class="me-2">排序依據:</span>
             <select class="form-select form-select-sm w-auto me-2" id="sort-by-select">

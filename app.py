@@ -382,13 +382,34 @@ def add_item(data_type):
     template_name = f'add_{data_type}.html'
     return render_template(template_name, master_pos_list=MASTER_POS_LIST_RAW, all_categories=all_categories)
 
-@app.route('/add/vocab')
+@app.route('/add/vocab', methods=['GET', 'POST'])
 def add_vocab():
-    return add_item('vocab')
+    # 🔑 新增：從 URL 參數中讀取分類
+    initial_category = request.args.get('category', None)
+    
+    if request.method == 'POST':
+        return add_item('vocab')
 
-@app.route('/add/grammar')
+    return render_template('add_vocab.html', 
+                           all_categories=get_all_categories(), 
+                           all_pos_raw=MASTER_POS_LIST_RAW,
+                           # 🔑 傳遞給模板
+                           initial_category=initial_category 
+                          )
+
+@app.route('/add/grammar', methods=['GET', 'POST'])
 def add_grammar():
-    return add_item('grammar')
+    # 🔑 新增：從 URL 參數中讀取分類
+    initial_category = request.args.get('category', None)
+    
+    if request.method == 'POST':
+        return add_item('grammar')
+
+    return render_template('add_grammar.html', 
+                           all_categories=get_all_categories(), 
+                           # 🔑 傳遞給模板
+                           initial_category=initial_category
+                          )
 
 # ----------------- 清單頁面 (MODIFIED) -----------------
 @app.route('/<data_type>/list', defaults={'page': 1}, methods=['GET'])
