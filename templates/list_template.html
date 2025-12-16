@@ -19,10 +19,11 @@
             color: #1e7e34;
             text-decoration: underline;
         }
-        
+
         /* 讓點擊的例句更容易辨識 */
         .example-cell:hover {
-            background-color: #f0f8ff; /* 淺藍色背景，提示可點擊 */
+            background-color: #f0f8ff;
+            /* 淺藍色背景，提示可點擊 */
         }
     </style>
 </head>
@@ -52,7 +53,7 @@
             {% set add_url = url_for(add_route, category=current_category) if current_category else url_for(add_route)
             %}
             <a href="{{ add_url }}" class="btn btn-success">＋ 新增</a>
-            
+
             {# 類別切換按鈕 #}
             {% if current_category %}
             <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
@@ -105,6 +106,21 @@
                                             <li><a class="dropdown-item"
                                                     href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='term', sort_order='desc') }}">{{
                                                     '單字' if data_type == 'vocab' else '文法' }} (Z→A)</a></li>
+                                            {# 🚨 新增詞性排序選項 (僅限單字頁面) #}
+                                            {% if data_type == 'vocab' %}
+                                            <li>
+                                                <hr class="dropdown-divider">
+                                            </li>
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='pos', sort_order='asc') }}">詞性
+                                                    (A→Z)</a></li>
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='pos', sort_order='desc') }}">詞性
+                                                    (Z→A)</a></li>
+                                            {% endif %}
+                                            <li>
+                                                <hr class="dropdown-divider">
+                                            </li>
                                             <li><a class="dropdown-item"
                                                     href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='timestamp', sort_order='desc') }}">新增日期
                                                     (新→舊)</a></li>
@@ -126,21 +142,22 @@
                                 <span class="tts-button" onclick="speakText('{{ item.term | escape }}')">🔊</span>
                             </td>
                             {% if data_type == 'vocab' %}
-                            <td><span class="badge bg-secondary">{{ item.pos_string if item.pos_string else 'N/A' }}</span></td>
+                            <td><span class="badge bg-secondary">{{ item.pos_string if item.pos_string else 'N/A'
+                                    }}</span></td>
                             {% endif %}
                             <td style="max-width: 250px;">{{ item.explanation }}</td>
-                            
+
                             {# 🌟 例句欄位：新增點擊翻譯和防止語音按鈕傳播 #}
-                            <td class="example-cell" 
-                                onclick="openGoogleTranslate('{{ item.example_sentence | escape }}')" 
+                            <td class="example-cell"
+                                onclick="openGoogleTranslate('{{ item.example_sentence | escape }}')"
                                 style="cursor: pointer;">
                                 {{ item.example_sentence }}
                                 {% if item.example_sentence %}
-                                <span class="tts-button" 
+                                <span class="tts-button"
                                     onclick="event.stopPropagation(); speakText('{{ item.example_sentence | escape }}')">🔊</span>
                                 {% endif %}
                             </td>
-                            
+
                             <td>
                                 {% for cat in item.categories.split(',') %}
                                 {% set cat_trim = cat.strip() %}
@@ -248,14 +265,14 @@
             if (text && text.trim().length > 0) {
                 // 執行您要求的動作：取消所有語音
                 window.speechSynthesis.cancel();
-                
+
                 const encodedText = encodeURIComponent(text.trim());
                 const url = `https://translate.google.com/?sl=ja&tl=zh-TW&text=${encodedText}&op=translate`;
                 window.open(url, '_blank');
                 return false;
             }
         }
-        
+
         // 發音功能 (保持不變)
         function speakText(text) {
             if ('speechSynthesis' in window) {
@@ -282,12 +299,12 @@
         function jumpToPage() {
             const jumpInput = document.getElementById('jump-to-input');
             const pageNum = parseInt(jumpInput.value);
-            const totalPages = parseInt('{{ total_pages }}'); 
+            const totalPages = parseInt('{{ total_pages }}');
             const currentPage = parseInt('{{ current_page }}');
 
             if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
                 alert(`請輸入介於 1 到 ${totalPages} 之間的有效頁碼。`);
-                jumpInput.value = currentPage; 
+                jumpInput.value = currentPage;
                 return;
             }
 

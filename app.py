@@ -491,18 +491,16 @@ class PaginationMock:
         return final_pages
 
 # ----------------- 查詢組件生成函數 (用於處理 JOIN 和 WHERE 條件) -----------------
-def _get_query_components(data_type, category, search_term):
+def _get_query_components(data_type, category, search_term, sort_by_pos=False): 
     """
     根據參數生成基礎查詢的 SELECT/FROM, WHERE 子句和參數列表。
     """
     
-    # 🌟 使用您原有的 get_table_name 函數來確保表格名稱正確
     table_name = get_table_name(data_type) 
     
     if data_type not in ['vocab', 'grammar']:
         return None, None, None, None
 
-    # 您的 vocab_table 和 grammar_table 的主欄位都是 'term'
     term_column = 'term' 
 
     # 基礎 SELECT 和 FROM
@@ -524,6 +522,20 @@ def _get_query_components(data_type, category, search_term):
         
         # 由於 JOIN 會產生重複行，必須使用 DISTINCT
         is_distinct = True
+        
+    # 處理詞性排序條件: 僅在 vocab 模式且需要按詞性排序時加入 JOIN 
+    # 由於一個單字可能有多個詞性，這裡使用 LEFT JOIN 並將 T_POS_M.name 加入 SELECT 子句
+    if data_type == 'vocab' and sort_by_pos:
+        # LEFT JOIN 確保沒有詞性的單字也能被包含
+        from_clause += """
+            LEFT JOIN item_pos_table AS T_POS ON T1.id = T_POS.item_id 
+            LEFT JOIN pos_master_table AS T_POS_M ON T_POS.pos_id = T_POS_M.id
+        """
+        # 將詞性名稱加入 SELECT 子句，以便排序 (注意：GROUP BY T1.id 會確保單字不重複)
+        # 我們將使用 T_POS_M.name 進行排序，並將其包含在 SELECT 中
+        select_clause += ", GROUP_CONCAT(T_POS_M.name) AS pos_string_for_sort" 
+        
+        is_distinct = True # GROUP_CONCAT 需要 GROUP BY
 
     # 處理搜尋條件 (搜尋範圍涵蓋 term, explanation, example_sentence)
     if search_term:
@@ -539,7 +551,11 @@ def _get_query_components(data_type, category, search_term):
         where_clause_str = " WHERE " + " AND ".join(where_clauses)
     
     if is_distinct:
-        select_clause = "DISTINCT " + select_clause
+        # 如果有 JOIN 且沒有 GROUP BY，則使用 DISTINCT。如果使用了 GROUP_CONCAT，則需要 GROUP BY。
+        if sort_by_pos:
+            return select_clause, from_clause, where_clause_str, params
+        else:
+            select_clause = "DISTINCT " + select_clause
         
     return select_clause, from_clause, where_clause_str, params
 def _get_base_query_and_params(data_type, category, search_term, sort_by, sort_order):
@@ -583,8 +599,10 @@ def list_page(data_type):
     sort_by = request.args.get('sort_by', 'id')
     sort_order = request.args.get('sort_order', 'asc')
     
-    # 1. 獲取查詢組件
-    select_clause, from_clause, where_clause_str, params = _get_query_components(data_type, category, search_term)
+    sort_by_pos = (data_type == 'vocab' and sort_by == 'pos') # 🚨 判斷是否需要按詞性排序
+    
+    # 1. 獲取查詢組件 (傳入 sort_by_pos)
+    select_clause, from_clause, where_clause_str, params = _get_query_components(data_type, category, search_term, sort_by_pos)
     
     if not select_clause:
         flash('錯誤: 無效的資料類型', 'danger')
@@ -598,10 +616,15 @@ def list_page(data_type):
     
     try:
         # 2. 計算總筆數 (使用 COUNT(DISTINCT T1.id) 確保計數正確)
-        count_query = f"SELECT COUNT({select_clause.replace('DISTINCT ', '')}) {from_clause} {where_clause_str}"
-        # 這裡需要將 SELECT 子句替換為 COUNT(T1.id) 並移除 DISTINCT 關鍵字，以優化計數
-        count_query_optimized = f"SELECT COUNT(DISTINCT T1.id) {from_clause} {where_clause_str}"
-        total_items = conn.execute(count_query_optimized, params).fetchone()[0]
+        # 由於 COUNT 只計數 ID，我們可以直接使用 T1.id
+        count_query_optimized = f"SELECT COUNT(DISTINCT T1.id) FROM {get_table_name(data_type)} AS T1"
+        
+        # 重新計算 COUNT 所需的 JOIN/WHERE 子句
+        # 這裡需要一個僅用於 COUNT 的 SELECT/FROM/WHERE 組件，它不包含 GROUP_CONCAT 或 DISTINCT
+        _, count_from_clause, count_where_clause_str, count_params = _get_query_components(data_type, category, search_term, False)
+        count_query_optimized = f"SELECT COUNT(DISTINCT T1.id) {count_from_clause} {count_where_clause_str}"
+        
+        total_items = conn.execute(count_query_optimized, count_params).fetchone()[0]
         
         if total_items > 0:
             total_pages = math.ceil(total_items / PER_PAGE)
@@ -616,18 +639,32 @@ def list_page(data_type):
             allowed_sorts = {
                 'id': 'T1.id',
                 'term': 'T1.term',
-                # 由於您的表結構沒有 timestamp，我們將 'timestamp' 排序指向 'id' (可被理解為按新增順序)
                 'timestamp': 'T1.id', 
+                'pos': 'pos_string_for_sort', # 🚨 關鍵: 按詞性排序
             }
             sort_column = allowed_sorts.get(sort_by, 'T1.id') 
-            sort_order_sql = 'DESC' if sort_order.lower() == 'desc' else 'ASC'
-            order_by_clause = f" ORDER BY {sort_column} {sort_order_sql}"
+            
+            # 處理詞性排序 (NULLs first/last)
+            if sort_by == 'pos':
+                # 讓沒有詞性的項目排在最後 (NULLS LAST)
+                order_by_clause = f" ORDER BY {sort_column} IS NULL ASC, {sort_column} "
+                sort_order_sql = 'DESC' if sort_order.lower() == 'desc' else 'ASC'
+                order_by_clause += sort_order_sql
+            else:
+                sort_order_sql = 'DESC' if sort_order.lower() == 'desc' else 'ASC'
+                order_by_clause = f" ORDER BY {sort_column} {sort_order_sql}"
             
             # 4. 執行分頁查詢 (LIMIT/OFFSET)
             offset = (page - 1) * PER_PAGE
             
             # 完整的 ITEMS 查詢
-            items_query = f"SELECT {select_clause} {from_clause} {where_clause_str} {order_by_clause} LIMIT ? OFFSET ?"
+            items_query = f"SELECT {select_clause} {from_clause} {where_clause_str}"
+            
+            if sort_by_pos:
+                # 如果按詞性排序，必須加上 GROUP BY T1.id
+                items_query += " GROUP BY T1.id" 
+
+            items_query += f" {order_by_clause} LIMIT ? OFFSET ?"
             
             items_raw = conn.execute(items_query, params + [PER_PAGE, offset]).fetchall()
             
@@ -643,6 +680,7 @@ def list_page(data_type):
                 
                 if data_type == 'vocab':
                     # 獲取詞性字串 (需要 get_item_pos_string 函數存在)
+                    # 即使查詢中已經有 pos_string_for_sort，我們仍使用原函數以確保邏輯一致
                     item_dict['pos_string'] = get_item_pos_string(item_id)
                     
                 items.append(item_dict)
@@ -676,7 +714,6 @@ def list_page(data_type):
         search_term=search_term,
         sort_by=sort_by,
         sort_order=sort_order,
-        # 移除 show_all_mode 參數
         per_page=PER_PAGE            
     )
 # ----------------- 編輯 (MODIFIED) -----------------
