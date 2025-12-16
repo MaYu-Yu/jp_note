@@ -19,6 +19,11 @@
             color: #1e7e34;
             text-decoration: underline;
         }
+        
+        /* 讓點擊的例句更容易辨識 */
+        .example-cell:hover {
+            background-color: #f0f8ff; /* 淺藍色背景，提示可點擊 */
+        }
     </style>
 </head>
 
@@ -29,11 +34,7 @@
             {% if current_category %}
             <span class="badge bg-warning text-dark">分類: {{ current_category }}</span>
             {% endif %}
-            {% if show_all_mode %}
-            <span class="badge bg-danger">✨ 顯示全部 (共 {{ items | length }} 筆)</span>
-            {% else %}
             (第 {{ current_page }} / {{ total_pages }} 頁)
-            {% endif %}
         </h1>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -44,37 +45,26 @@
         {% endif %}
         {% endwith %}
 
-        <div class="mb-2 d-flex gap-2">
-            <button onclick="history.back()" class="btn btn-secondary mb-3 ms-2">← 返回上頁</button>
-            <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3 ms-2">🏠 返回首頁</a>
+        <div class="mb-4 d-flex gap-2 flex-wrap">
+            <button onclick="history.back()" class="btn btn-secondary">← 返回上頁</button>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
             {% set add_route = 'add_vocab' if data_type == 'vocab' else 'add_grammar' %}
-
             {% set add_url = url_for(add_route, category=current_category) if current_category else url_for(add_route)
             %}
-
-            <a href="{{ add_url }}" class="btn btn-success mb-3 ms-2">＋ 新增</a>
-
-            <a href="{{ url_for('list_page', data_type=data_type, category=current_category, search=search_term, limit='all') }}"
-                class="btn btn-danger mb-3 ms-2 {% if show_all_mode %}d-none{% endif %}">
-                💥 顯示全部 (請注意效能)
+            <a href="{{ add_url }}" class="btn btn-success">＋ 新增</a>
+            
+            {# 類別切換按鈕 #}
+            {% if current_category %}
+            <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                class="btn btn-{{ 'primary' if data_type == 'vocab' else 'outline-primary' }}">
+                單字 ({{ current_category }})
             </a>
-            <a href="{{ url_for('list_page', data_type=data_type, category=current_category, search=search_term) }}"
-                class="btn btn-success mb-3 ms-2 {% if not show_all_mode %}d-none{% endif %}">
-                🔙 返回分頁模式 ({{ per_page }} 筆/頁)
+            <a href="{{ url_for('list_page', data_type='grammar', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                class="btn btn-{{ 'primary' if data_type == 'grammar' else 'outline-primary' }}">
+                文法 ({{ current_category }})
             </a>
+            {% endif %}
         </div>
-
-
-        {% if current_category %}
-        <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
-            class="btn btn-{{ 'primary' if data_type == 'vocab' else 'outline-primary' }} mb-3 ms-2">
-            單字 ({{ current_category }})
-        </a>
-        <a href="{{ url_for('list_page', data_type='grammar', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
-            class="btn btn-{{ 'primary' if data_type == 'grammar' else 'outline-primary' }} mb-3">
-            文法 ({{ current_category }})
-        </a>
-        {% endif %}
 
 
         <div class="row">
@@ -89,9 +79,42 @@
                             <th>詞性</th>
                             {% endif %}
                             <th>解釋/中文意思</th>
-                            <th>例句</th>
+                            <th>
+                                例句
+                                <small class="text-muted d-block">(點擊翻譯)</small>
+                            </th>
                             <th>分類標籤</th>
-                            <th>操作</th>
+                            <th>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    操作
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-light dropdown-toggle" type="button"
+                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                            排序
+                                        </button>
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='id', sort_order='asc') }}">ID
+                                                    (從小到大)</a></li>
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='id', sort_order='desc') }}">ID
+                                                    (從大到小)</a></li>
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='term', sort_order='asc') }}">{{
+                                                    '單字' if data_type == 'vocab' else '文法' }} (A→Z)</a></li>
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='term', sort_order='desc') }}">{{
+                                                    '單字' if data_type == 'vocab' else '文法' }} (Z→A)</a></li>
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='timestamp', sort_order='desc') }}">新增日期
+                                                    (新→舊)</a></li>
+                                            <li><a class="dropdown-item"
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='timestamp', sort_order='asc') }}">新增日期
+                                                    (舊→新)</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -103,24 +126,28 @@
                                 <span class="tts-button" onclick="speakText('{{ item.term | escape }}')">🔊</span>
                             </td>
                             {% if data_type == 'vocab' %}
-                            <td><span class="badge bg-secondary">{{ item.pos_string if item.pos_string else 'N/A'
-                                    }}</span></td>
+                            <td><span class="badge bg-secondary">{{ item.pos_string if item.pos_string else 'N/A' }}</span></td>
                             {% endif %}
                             <td style="max-width: 250px;">{{ item.explanation }}</td>
-                            <td>
+                            
+                            {# 🌟 例句欄位：新增點擊翻譯和防止語音按鈕傳播 #}
+                            <td class="example-cell" 
+                                onclick="openGoogleTranslate('{{ item.example_sentence | escape }}')" 
+                                style="cursor: pointer;">
                                 {{ item.example_sentence }}
                                 {% if item.example_sentence %}
-                                <span class="tts-button"
-                                    onclick="speakText('{{ item.example_sentence | escape }}')">🔊</span>
+                                <span class="tts-button" 
+                                    onclick="event.stopPropagation(); speakText('{{ item.example_sentence | escape }}')">🔊</span>
                                 {% endif %}
                             </td>
+                            
                             <td>
                                 {% for cat in item.categories.split(',') %}
                                 {% set cat_trim = cat.strip() %}
                                 {% if cat_trim %}
                                 <span class="badge bg-primary me-1">
                                     <a class="text-white text-decoration-none"
-                                        href="{{ url_for('list_page', data_type=data_type, category=cat_trim) }}">
+                                        href="{{ url_for('list_page', data_type=data_type, category=cat_trim, page=1) }}">
                                         {{ cat_trim }}
                                     </a>
                                 </span>
@@ -130,52 +157,85 @@
                             <td>
                                 <a href="{{ url_for('edit_item', data_type=data_type, item_id=item.id) }}"
                                     class="btn btn-sm btn-warning">編輯</a>
-                                <form
-                                    action="{{ url_for('delete_item', data_type=data_type, item_id=item.id) }}"
-                                    method="POST" class="d-inline"
-                                    onsubmit="return confirm('確定要刪除 {{ item.term }} 嗎？此操作不可逆！');">
-                                    <button type="submit" class="btn btn-sm btn-danger">刪除</button>
-                                </form>
+                                <button class="btn btn-sm btn-danger delete-btn" data-id="{{ item.id }}">刪除</button>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 {% else %}
-                <div class="alert alert-info mt-4">
-                    找不到符合條件的 {{ '單字' if data_type == 'vocab' else '文法' }}。
-                    {% if current_category %}
-                    <a href="{{ url_for('add_item', data_type=data_type, category=current_category) }}"
-                        class="alert-link">點擊此處新增</a>
+                <div class="alert alert-warning">
+                    {% if search_term %}
+                    找不到與 **{{ search_term }}** 相關的{{ '單字' if data_type == 'vocab' else '文法' }}。
+                    {% elif current_category %}
+                    分類 **{{ current_category }}** 中目前沒有{{ '單字' if data_type == 'vocab' else '文法' }}。
+                    {% else %}
+                    目前清單為空。
                     {% endif %}
                 </div>
                 {% endif %}
 
-
-                {% if not show_all_mode and total_pages > 1 %}
-                <nav aria-label="Page navigation">
-                    <ul class="pagination justify-content-center">
-                        <li class="page-item {% if current_page <= 1 %}disabled{% endif %}">
+                {# ---------------------------------------------------------------- #}
+                {# 🎯 完整的分頁導航區塊 #}
+                {# ---------------------------------------------------------------- #}
+                {% if pagination %}
+                <nav aria-label="Page navigation example" class="mt-4">
+                    <ul class="pagination justify-content-center flex-wrap">
+                        {# 1. 上一頁按鈕 #}
+                        {% if pagination.has_prev %}
+                        <li class="page-item">
                             <a class="page-link"
-                                href="{{ url_for('list_page', data_type=data_type, page=current_page - 1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">上頁</a>
+                                href="{{ url_for('list_page', data_type=data_type, page=pagination.prev_num, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                                aria-label="Previous">
+                                <span aria-hidden="true">← 上一頁</span>
+                            </a>
                         </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">← 上一頁</span></li>
+                        {% endif %}
 
-                        {% for p in range(1, total_pages + 1) %}
-                        <li class="page-item {% if p == current_page %}active{% endif %}">
-                            <a class="page-link"
-                                href="{{ url_for('list_page', data_type=data_type, page=p, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">{{ p }}</a>
-                        </li>
+                        {# 2. 頁碼清單 #}
+                        {% for page in pagination.iter_pages(left_edge=1, right_edge=1, left_current=5, right_current=5)
+                        %}
+                        {% if page %}
+                        {% if page != pagination.page %}
+                        <li class="page-item"><a class="page-link"
+                                href="{{ url_for('list_page', data_type=data_type, page=page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">{{
+                                page }}</a></li>
+                        {% else %}
+                        <li class="page-item active" aria-current="page"><span class="page-link">{{ page }}</span></li>
+                        {% endif %}
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
                         {% endfor %}
 
-                        <li class="page-item {% if current_page >= total_pages %}disabled{% endif %}">
+                        {# 3. 下一頁按鈕 #}
+                        {% if pagination.has_next %}
+                        <li class="page-item">
                             <a class="page-link"
-                                href="{{ url_for('list_page', data_type=data_type, page=current_page + 1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">下頁</a>
+                                href="{{ url_for('list_page', data_type=data_type, page=pagination.next_num, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                                aria-label="Next">
+                                <span aria-hidden="true">下一頁 →</span>
+                            </a>
                         </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">下一頁 →</span></li>
+                        {% endif %}
                     </ul>
                 </nav>
-                {% elif total_items > 0 and show_all_mode %}
-                <div class="alert alert-info mt-4 text-center">已顯示清單中所有 **{{ items | length }}** 筆資料。</div>
+
+                {# 4. 跳轉至指定頁面區塊 #}
+                <div class="d-flex justify-content-center align-items-center gap-2 mt-3 mb-4">
+                    <label for="jump-to-input" class="form-label mb-0 fw-bold">跳轉至頁面:</label>
+                    <input type="number" id="jump-to-input" class="form-control"
+                        style="width: 100px; text-align: center;" min="1" max="{{ total_pages }}"
+                        value="{{ current_page }}" aria-label="跳轉頁數">
+                    <button class="btn btn-primary" onclick="jumpToPage()">GO</button>
+                    <small class="text-muted">(1 - {{ total_pages }})</small>
+                </div>
                 {% endif %}
+                {# ---------------------------------------------------------------- #}
 
             </div>
         </div>
@@ -183,31 +243,95 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 🚨 關鍵：使用您原始且有效的發音邏輯 (已恢復穩定)
+        // 🌟 修正後的翻譯功能：新增取消語音 (符合您的要求)
+        function openGoogleTranslate(text) {
+            if (text && text.trim().length > 0) {
+                // 執行您要求的動作：取消所有語音
+                window.speechSynthesis.cancel();
+                
+                const encodedText = encodeURIComponent(text.trim());
+                const url = `https://translate.google.com/?sl=ja&tl=zh-TW&text=${encodedText}&op=translate`;
+                window.open(url, '_blank');
+                return false;
+            }
+        }
+        
+        // 發音功能 (保持不變)
         function speakText(text) {
             if ('speechSynthesis' in window) {
                 let textToSpeak = text.trim();
 
                 // 處理文法: 提取 [ ] 內的核心文法
-                const match = textToSpeak.match(/\\[([^\\]]+)\\]/);
+                const match = textToSpeak.match(/\[([^\]]+)\]/);
                 if (match && match[1]) {
                     textToSpeak = match[1].trim();
                 } else {
                     // 處理單字: 提取 + 號前面的部分 (如果沒有 [ ] )
                     textToSpeak = textToSpeak.split('+')[0].trim();
                 }
-                // 如果是例句，由於沒有 [] 或 +，它會使用完整的文本
 
                 if (textToSpeak) {
                     const utterance = new SpeechSynthesisUtterance(textToSpeak);
                     utterance.lang = 'ja-JP'; // 設定為日語
-                    window.speechSynthesis.cancel(); // 取消任何正在播放的語音
                     window.speechSynthesis.speak(utterance);
                 }
-            } else {
-                console.warn("您的瀏覽器不支持 Web Speech API.");
             }
         }
+
+        // 頁面跳轉功能 (保持不變)
+        function jumpToPage() {
+            const jumpInput = document.getElementById('jump-to-input');
+            const pageNum = parseInt(jumpInput.value);
+            const totalPages = parseInt('{{ total_pages }}'); 
+            const currentPage = parseInt('{{ current_page }}');
+
+            if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
+                alert(`請輸入介於 1 到 ${totalPages} 之間的有效頁碼。`);
+                jumpInput.value = currentPage; 
+                return;
+            }
+
+            const url = '{{ url_for("list_page", data_type=data_type, page=0, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}';
+            window.location.href = url.replace('page=0', `page=${pageNum}`);
+        }
+
+        // 刪除按鈕功能 (保持不變)
+        document.addEventListener('DOMContentLoaded', function () {
+            const deleteButtons = document.querySelectorAll('.delete-btn');
+            deleteButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const itemId = this.getAttribute('data-id');
+                    const dataType = '{{ data_type }}';
+                    const term = this.closest('tr').querySelector('strong').textContent.trim();
+
+                    if (confirm(`確定要刪除這筆 ID: ${itemId} 的「${term}」{{ '單字' if data_type == 'vocab' else '文法' }}嗎？`)) {
+                        fetch(`/delete/${dataType}/${itemId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                        })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                if (data.success) {
+                                    window.location.reload(); // 成功後重新載入頁面
+                                } else {
+                                    alert('刪除失敗: ' + (data.message || '未知錯誤'));
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('刪除過程中發生錯誤。請檢查伺服器連線。');
+                            });
+                    }
+                });
+            });
+        });
     </script>
 </body>
 
