@@ -25,6 +25,12 @@
             background-color: #f0f8ff;
             /* 淺藍色背景，提示可點擊 */
         }
+        
+        /* 🚨 NEW: 調整以適應篩選下拉選單的寬度 */
+        .filter-select {
+            max-width: 150px;
+            /* 讓下拉選單不會太寬 */
+        }
     </style>
 </head>
 
@@ -33,7 +39,15 @@
         <h1 class="mb-4">
             {{ '📚 單字清單' if data_type == 'vocab' else '📑 文法清單' }}
             {% if current_category %}
-            <span class="badge bg-warning text-dark">分類: {{ current_category }}</span>
+            <span class="badge bg-warning text-dark">
+                分類: 
+                {# 🚨 關鍵修改：判斷是否為「無分類」 #}
+                {% if current_category == '__uncategorized__' %}
+                無分類項目 
+                {% else %}
+                {{ current_category }}
+                {% endif %}
+            </span>
             {% endif %}
             (第 {{ current_page }} / {{ total_pages }} 頁)
         </h1>
@@ -45,17 +59,70 @@
         {% endfor %}
         {% endif %}
         {% endwith %}
+        
+        {# 🎯 搜尋與篩選區塊 #}
+        <form method="GET" action="{{ url_for('list_page', data_type=data_type, page=1) }}"
+            class="mb-4 d-flex flex-wrap gap-2 align-items-center">
+
+            {# 隱藏的篩選參數，用於保留非搜尋/篩選的狀態 #}
+            <input type="hidden" name="sort_by" value="{{ sort_by }}">
+            <input type="hidden" name="sort_order" value="{{ sort_order }}">
+            
+            {# 搜尋框 #}
+            <div class="input-group" style="max-width: 350px;">
+                <input type="search" class="form-control" placeholder="搜尋 單字/文法 或解釋..." name="search"
+                    value="{{ search_term if search_term else '' }}" aria-label="搜尋">
+                <button class="btn btn-outline-secondary" type="submit">🔍 搜尋</button>
+                {# 清除所有篩選/搜尋按鈕 #}
+                {% if search_term or pos_filter or current_category %}
+                <a href="{{ url_for('list_page', data_type=data_type, sort_by=sort_by, sort_order=sort_order) }}"
+                    class="btn btn-outline-danger" title="清除所有篩選/搜尋">✖</a>
+                {% endif %}
+            </div>
+
+            {# 詞性篩選 (僅限單字頁面) #}
+            {% if data_type == 'vocab' %}
+            <div class="d-flex align-items-center gap-1">
+                <label for="pos-filter-select" class="form-label mb-0 fw-bold">詞性:</label>
+                <select id="pos-filter-select" name="pos" class="form-select filter-select" onchange="this.form.submit()">
+                    <option value="">全部詞性</option>
+                    {% for pos_abbr, pos_full in pos_list %}
+                    <option value="{{ pos_abbr }}" {% if pos_filter==pos_abbr %}selected{% endif %}>
+                        {{ pos_full }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            {# 分類篩選 #}
+            <div class="d-flex align-items-center gap-1">
+                <label for="category-filter-select" class="form-label mb-0 fw-bold">分類:</label>
+                <select id="category-filter-select" name="category" class="form-select filter-select" onchange="this.form.submit()">
+                    <option value="">全部分類</option>
+                    {# 🚨 關鍵修改：新增「無分類」選項 #}
+                    <option value="__uncategorized__" {% if current_category=='__uncategorized__' %}selected{% endif %}>
+                        無分類
+                    </option>
+                    {% for cat in all_categories %}
+                    <option value="{{ cat }}" {% if current_category==cat %}selected{% endif %}>
+                        {{ cat }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+        {# --------------------------------------- #}
 
         <div class="mb-4 d-flex gap-2 flex-wrap">
             <button onclick="history.back()" class="btn btn-secondary">← 返回上頁</button>
             <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
             {% set add_route = 'add_vocab' if data_type == 'vocab' else 'add_grammar' %}
-            {% set add_url = url_for(add_route, category=current_category) if current_category else url_for(add_route)
-            %}
+            {% set add_url = url_for(add_route, category=current_category) if current_category and current_category != '__uncategorized__' else url_for(add_route) %}
             <a href="{{ add_url }}" class="btn btn-success">＋ 新增</a>
 
-            {# 類別切換按鈕 #}
-            {% if current_category %}
+            {# 類別切換按鈕 (如果當前有選中分類，保留類型切換功能) #}
+            {% if current_category and current_category != '__uncategorized__' %}
             <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
                 class="btn btn-{{ 'primary' if data_type == 'vocab' else 'outline-primary' }}">
                 單字 ({{ current_category }})
@@ -74,7 +141,6 @@
                 <table class="table table-hover table-striped">
                     <thead>
                         <tr>
-                            <th>#ID</th>
                             <th>{{ '單字 / 文法' }}</th>
                             {% if data_type == 'vocab' %}
                             <th>詞性</th>
@@ -95,38 +161,26 @@
                                         </button>
                                         <ul class="dropdown-menu">
                                             <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='id', sort_order='asc') }}">ID
-                                                    (從小到大)</a></li>
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='id', sort_order='asc', pos=pos_filter) }}">
+                                                    舊→新</a></li>
                                             <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='id', sort_order='desc') }}">ID
-                                                    (從大到小)</a></li>
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='id', sort_order='desc', pos=pos_filter) }}">
+                                                    新→舊</a></li>
                                             <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='term', sort_order='asc') }}">{{
-                                                    '單字' if data_type == 'vocab' else '文法' }} (A→Z)</a></li>
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='term', sort_order='asc', pos=pos_filter) }}">{{
+                                                    '單字' if data_type == 'vocab' else '文法' }} (あ→ん)</a></li>
                                             <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='term', sort_order='desc') }}">{{
-                                                    '單字' if data_type == 'vocab' else '文法' }} (Z→A)</a></li>
-                                            {# 🚨 新增詞性排序選項 (僅限單字頁面) #}
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='term', sort_order='desc', pos=pos_filter) }}">{{
+                                                    '單字' if data_type == 'vocab' else '文法' }} (あ→ん)</a></li>
+                                            {# 新增詞性排序選項 (僅限單字頁面) #}
                                             {% if data_type == 'vocab' %}
-                                            <li>
-                                                <hr class="dropdown-divider">
-                                            </li>
                                             <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='pos', sort_order='asc') }}">詞性
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='pos', sort_order='asc', pos=pos_filter) }}">詞性
                                                     (A→Z)</a></li>
                                             <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='pos', sort_order='desc') }}">詞性
+                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='pos', sort_order='desc', pos=pos_filter) }}">詞性
                                                     (Z→A)</a></li>
                                             {% endif %}
-                                            <li>
-                                                <hr class="dropdown-divider">
-                                            </li>
-                                            <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='timestamp', sort_order='desc') }}">新增日期
-                                                    (新→舊)</a></li>
-                                            <li><a class="dropdown-item"
-                                                    href="{{ url_for('list_page', data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by='timestamp', sort_order='asc') }}">新增日期
-                                                    (舊→新)</a></li>
                                         </ul>
                                     </div>
                                 </div>
@@ -136,7 +190,6 @@
                     <tbody>
                         {% for item in items %}
                         <tr>
-                            <td>{{ item.id }}</td>
                             <td>
                                 <strong>{{ item.term }}</strong>
                                 <span class="tts-button" onclick="speakText('{{ item.term | escape }}')">🔊</span>
@@ -164,12 +217,15 @@
                                 {% if cat_trim %}
                                 <span class="badge bg-primary me-1">
                                     <a class="text-white text-decoration-none"
-                                        href="{{ url_for('list_page', data_type=data_type, category=cat_trim, page=1) }}">
+                                        href="{{ url_for('list_page', data_type=data_type, category=cat_trim, page=1, search=search_term, pos=pos_filter, sort_by=sort_by, sort_order=sort_order) }}">
                                         {{ cat_trim }}
                                     </a>
                                 </span>
                                 {% endif %}
                                 {% endfor %}
+                                {% if not item.categories %}
+                                <span class="badge bg-danger">無分類</span>
+                                {% endif %}
                             </td>
                             <td>
                                 <a href="{{ url_for('edit_item', data_type=data_type, item_id=item.id) }}"
@@ -184,6 +240,9 @@
                 <div class="alert alert-warning">
                     {% if search_term %}
                     找不到與 **{{ search_term }}** 相關的{{ '單字' if data_type == 'vocab' else '文法' }}。
+                    {# 🚨 關鍵修改：新增無分類警告 #}
+                    {% elif current_category == '__uncategorized__' %}
+                    找不到任何 **無分類** 的{{ '單字' if data_type == 'vocab' else '文法' }}項目。
                     {% elif current_category %}
                     分類 **{{ current_category }}** 中目前沒有{{ '單字' if data_type == 'vocab' else '文法' }}。
                     {% else %}
@@ -202,7 +261,7 @@
                         {% if pagination.has_prev %}
                         <li class="page-item">
                             <a class="page-link"
-                                href="{{ url_for('list_page', data_type=data_type, page=pagination.prev_num, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                                href="{{ url_for('list_page', data_type=data_type, page=pagination.prev_num, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}"
                                 aria-label="Previous">
                                 <span aria-hidden="true">← 上一頁</span>
                             </a>
@@ -217,7 +276,7 @@
                         {% if page %}
                         {% if page != pagination.page %}
                         <li class="page-item"><a class="page-link"
-                                href="{{ url_for('list_page', data_type=data_type, page=page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}">{{
+                                href="{{ url_for('list_page', data_type=data_type, page=page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}">{{
                                 page }}</a></li>
                         {% else %}
                         <li class="page-item active" aria-current="page"><span class="page-link">{{ page }}</span></li>
@@ -231,7 +290,7 @@
                         {% if pagination.has_next %}
                         <li class="page-item">
                             <a class="page-link"
-                                href="{{ url_for('list_page', data_type=data_type, page=pagination.next_num, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
+                                href="{{ url_for('list_page', data_type=data_type, page=pagination.next_num, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}"
                                 aria-label="Next">
                                 <span aria-hidden="true">下一頁 →</span>
                             </a>
@@ -301,6 +360,11 @@
             const pageNum = parseInt(jumpInput.value);
             const totalPages = parseInt('{{ total_pages }}');
             const currentPage = parseInt('{{ current_page }}');
+            
+            // 由於 Jinja 模板已在伺服器端生成了完整的 URL，這裡我們直接替換 page 參數
+            // 為了簡化，我們將使用一個包含所有當前參數的基礎 URL 模板
+            const baseUrl = '{{ url_for("list_page", data_type=data_type, page="PLACEHOLDER", category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}';
+
 
             if (isNaN(pageNum) || pageNum < 1 || pageNum > totalPages) {
                 alert(`請輸入介於 1 到 ${totalPages} 之間的有效頁碼。`);
@@ -308,8 +372,8 @@
                 return;
             }
 
-            const url = '{{ url_for("list_page", data_type=data_type, page=0, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}';
-            window.location.href = url.replace('page=0', `page=${pageNum}`);
+            // 安全替換頁碼
+            window.location.href = baseUrl.replace('PLACEHOLDER', pageNum);
         }
 
         // 刪除按鈕功能 (保持不變)
@@ -329,17 +393,15 @@
                             },
                         })
                             .then(response => {
-                                if (!response.ok) {
+                                // 由於 Flask 的 DELETE 路由是直接導向 list_page，這裡的 fetch 其實不會返回 JSON 成功訊息
+                                // 最簡單的處理方式是假設成功後直接重新載入頁面
+                                if (response.ok || response.redirected) {
+                                    // 使用 window.location.href 而不是 reload，確保正確處理閃現訊息
+                                    window.location.href = '{{ url_for("list_page", data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}'; 
+                                } else {
                                     throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
                                 }
-                                return response.json();
-                            })
-                            .then(data => {
-                                if (data.success) {
-                                    window.location.reload(); // 成功後重新載入頁面
-                                } else {
-                                    alert('刪除失敗: ' + (data.message || '未知錯誤'));
-                                }
+                                
                             })
                             .catch(error => {
                                 console.error('Error:', error);

@@ -50,6 +50,9 @@ MASTER_POS_LIST_RAW = [
 # 預處理詞性列表，只保留縮寫 (例如: '名')
 MASTER_POS_LIST = [pos.split(' ')[0].strip() for pos in MASTER_POS_LIST_RAW]
 
+# 新增輔助列表：用於模板中的下拉選單 (縮寫, 完整名稱)
+MASTER_POS_TUPLES = [(pos.split(' ')[0].strip(), pos.strip()) for pos in MASTER_POS_LIST_RAW]
+
 # ----------------- 資料庫工具函數 -----------------
 
 def get_db_connection():
@@ -59,8 +62,6 @@ def get_db_connection():
 
 def get_table_name(data_type):
     return 'vocab_table' if data_type == 'vocab' else 'grammar_table'
-
-# ----------------- 修正點: 資料庫初始化與正規化 -----------------
 
 def init_db():
     conn = get_db_connection()
@@ -127,7 +128,6 @@ def init_db():
     conn.commit()
     
     # 7. 填充 pos_master_table
-    # 🚨 關鍵: 確保所有詞性都存在於主表中
     for pos_abbr in MASTER_POS_LIST:
         try:
             cursor.execute('INSERT INTO pos_master_table (name) VALUES (?)', (pos_abbr,))
@@ -138,7 +138,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ----------------- 詞性處理工具函數 (NEW) -----------------
+# ----------------- 詞性處理工具函數-----------------
 
 def get_pos_id(name, conn):
     """取得詞性ID，必須從 pos_master_table 獲得。返回 pos_id"""
@@ -177,7 +177,7 @@ def update_item_pos(item_id, pos_list, conn):
                     pass
 
 def get_item_pos_string(item_id):
-    """根據 item_id 查詢並返回詞性字串 (名, 動, 自動)"""
+    """根據 item_id 查詢並返回詞性字串 (名, 動, 自動,...)"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -191,7 +191,7 @@ def get_item_pos_string(item_id):
     conn.close()
     return ','.join(pos_list)
 
-# ----------------- 分類處理工具函數 (不變) -----------------
+# ----------------- 分類處理工具函數-----------------
 
 def get_or_create_category(name, conn):
     """取得分類ID，如果不存在則創建它。返回 category_id"""
@@ -252,7 +252,7 @@ def get_item_categories_string(item_id, item_type):
     conn.close()
     return ', '.join(categories)
 
-# ----------------- 首頁與清單 (不變) -----------------
+# ----------------- 首頁與清單 -----------------
 
 @app.route('/')
 def home():
@@ -316,7 +316,7 @@ def api_edit_category(old_name):
         if cursor.fetchone():
             return jsonify({'success': False, 'message': f'分類名稱「{new_name}」已存在。'}), 409
 
-        # 1. 更新 category_table 中的名稱 (item_category_table 會通過外鍵關係保持正確)
+        # 更新 category_table 中的名稱 (item_category_table 會通過外鍵關係保持正確)
         cursor.execute('UPDATE category_table SET name = ? WHERE name = ?', (new_name, old_name))
         
         if cursor.rowcount == 0:
@@ -418,14 +418,12 @@ def add_item(data_type):
             flash(f'新增失敗: {e}', 'danger')
         finally:
             conn.close()
-
     # GET 請求
     template_name = f'add_{data_type}.html'
     return render_template(template_name, master_pos_list=MASTER_POS_LIST_RAW, all_categories=all_categories)
 
 @app.route('/add/vocab', methods=['GET', 'POST'])
 def add_vocab():
-    # 🔑 新增：從 URL 參數中讀取分類
     initial_category = request.args.get('category', None)
     
     if request.method == 'POST':
@@ -439,7 +437,6 @@ def add_vocab():
 
 @app.route('/add/grammar', methods=['GET', 'POST'])
 def add_grammar():
-    # 🔑 新增：從 URL 參數中讀取分類
     initial_category = request.args.get('category', None)
     
     if request.method == 'POST':
@@ -491,7 +488,8 @@ class PaginationMock:
         return final_pages
 
 # ----------------- 查詢組件生成函數 (用於處理 JOIN 和 WHERE 條件) -----------------
-def _get_query_components(data_type, category, search_term, sort_by_pos=False): 
+
+def _get_query_components(data_type, category, search_term, pos_filter=None, sort_by_pos=False): 
     """
     根據參數生成基礎查詢的 SELECT/FROM, WHERE 子句和參數列表。
     """
@@ -509,33 +507,49 @@ def _get_query_components(data_type, category, search_term, sort_by_pos=False):
     where_clauses = []
     params = []
     is_distinct = False
-
-    # 處理分類條件: 必須 JOIN item_category_table 和 category_table
+    
+    # 處理分類條件: 🚨 關鍵修改：新增 '__uncategorized__' 處理
     if category:
-        from_clause += """
-            JOIN item_category_table AS T2 ON T1.id = T2.item_id 
-            JOIN category_table AS T3 ON T2.category_id = T3.id
+        if category == '__uncategorized__':
+            # LEFT JOIN item_category_table 並檢查連結是否為 NULL，找出無分類的項目
+            from_clause += """
+                LEFT JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = ?
+            """
+            params.append(data_type)
+            where_clauses.append("T2.category_id IS NULL")
+            is_distinct = True
+        else:
+            # 必須 JOIN item_category_table 和 category_table (特定分類篩選)
+            from_clause += """
+                JOIN item_category_table AS T2 ON T1.id = T2.item_id 
+                JOIN category_table AS T3 ON T2.category_id = T3.id
+            """
+            # 確保只篩選當前 data_type 的項目
+            where_clauses.append("T3.name = ? AND T2.item_type = ?")
+            params.extend([category, data_type])
+            is_distinct = True
+        
+    # 處理詞性 JOIN (包含篩選和排序)
+    if data_type == 'vocab' and (pos_filter or sort_by_pos):
+        
+        # 如果有篩選條件，我們必須使用 INNER JOIN
+        join_type = "INNER" if pos_filter else "LEFT"
+        
+        from_clause += f"""
+            {join_type} JOIN item_pos_table AS T_POS ON T1.id = T_POS.item_id 
+            {join_type} JOIN pos_master_table AS T_POS_M ON T_POS.pos_id = T_POS_M.id
         """
-        # 確保只篩選當前 data_type 的項目
-        where_clauses.append("T3.name = ? AND T2.item_type = ?")
-        params.extend([category, data_type])
         
-        # 由於 JOIN 會產生重複行，必須使用 DISTINCT
-        is_distinct = True
-        
-    # 處理詞性排序條件: 僅在 vocab 模式且需要按詞性排序時加入 JOIN 
-    # 由於一個單字可能有多個詞性，這裡使用 LEFT JOIN 並將 T_POS_M.name 加入 SELECT 子句
-    if data_type == 'vocab' and sort_by_pos:
-        # LEFT JOIN 確保沒有詞性的單字也能被包含
-        from_clause += """
-            LEFT JOIN item_pos_table AS T_POS ON T1.id = T_POS.item_id 
-            LEFT JOIN pos_master_table AS T_POS_M ON T_POS.pos_id = T_POS_M.id
-        """
-        # 將詞性名稱加入 SELECT 子句，以便排序 (注意：GROUP BY T1.id 會確保單字不重複)
-        # 我們將使用 T_POS_M.name 進行排序，並將其包含在 SELECT 中
-        select_clause += ", GROUP_CONCAT(T_POS_M.name) AS pos_string_for_sort" 
-        
-        is_distinct = True # GROUP_CONCAT 需要 GROUP BY
+        # 如果有篩選條件，增加 WHERE
+        if pos_filter:
+             where_clauses.append("T_POS_M.name = ?")
+             params.append(pos_filter)
+             
+        # 如果需要排序，增加 SELECT 子句
+        if sort_by_pos:
+            select_clause += ", GROUP_CONCAT(T_POS_M.name) AS pos_string_for_sort" 
+            
+        is_distinct = True # 只要有 JOIN，都可能需要 GROUP BY/DISTINCT
 
     # 處理搜尋條件 (搜尋範圍涵蓋 term, explanation, example_sentence)
     if search_term:
@@ -545,7 +559,6 @@ def _get_query_components(data_type, category, search_term, sort_by_pos=False):
         search_param = f"%{search_term}%"
         params.extend([search_param, search_param, search_param])
     
-    # 組合 WHERE 子句
     where_clause_str = ""
     if where_clauses:
         where_clause_str = " WHERE " + " AND ".join(where_clauses)
@@ -553,56 +566,29 @@ def _get_query_components(data_type, category, search_term, sort_by_pos=False):
     if is_distinct:
         # 如果有 JOIN 且沒有 GROUP BY，則使用 DISTINCT。如果使用了 GROUP_CONCAT，則需要 GROUP BY。
         if sort_by_pos:
+            # 必須使用 GROUP BY，這樣才能使用 GROUP_CONCAT
             return select_clause, from_clause, where_clause_str, params
         else:
+            # 如果只是篩選，使用 DISTINCT
             select_clause = "DISTINCT " + select_clause
         
     return select_clause, from_clause, where_clause_str, params
-def _get_base_query_and_params(data_type, category, search_term, sort_by, sort_order):
-    """根據參數生成基礎 SQL 查詢和參數列表"""
-    if data_type == 'vocab':
-        table_name = 'vocab_list'
-        term_column = 'term'
-    elif data_type == 'grammar':
-        table_name = 'grammar_list'
-        term_column = 'grammar_rule'
-    else:
-        return None, None, None
 
-    query = f"SELECT * FROM {table_name}"
-    where_clauses = []
-    params = []
-
-    if search_term:
-        where_clauses.append(f"({term_column} LIKE ? OR explanation LIKE ? OR example_sentence LIKE ?)")
-        search_param = f"%{search_term}%"
-        params.extend([search_param, search_param, search_param])
-
-    if category:
-        where_clauses.append("categories LIKE ?")
-        params.append(f"%{category}%")
-
-    if where_clauses:
-        query += " WHERE " + " AND ".join(where_clauses)
-
-    allowed_sorts = {'id': 'id', 'term': term_column, 'timestamp': 'timestamp'}
-    sort_column = allowed_sorts.get(sort_by, 'id')
-    sort_order = 'DESC' if sort_order.lower() == 'desc' else 'ASC'
-    query += f" ORDER BY {sort_column} {sort_order}"
-
-    return query, params, table_name
 @app.route('/list/<data_type>', methods=['GET'])
 def list_page(data_type):
     page = request.args.get('page', 1, type=int)
     category = request.args.get('category')
     search_term = request.args.get('search')
+    # 🚨 新增：接收詞性篩選參數
+    pos_filter = request.args.get('pos') 
+    
     sort_by = request.args.get('sort_by', 'id')
     sort_order = request.args.get('sort_order', 'asc')
     
-    sort_by_pos = (data_type == 'vocab' and sort_by == 'pos') # 🚨 判斷是否需要按詞性排序
+    sort_by_pos = (data_type == 'vocab' and sort_by == 'pos')
     
-    # 1. 獲取查詢組件 (傳入 sort_by_pos)
-    select_clause, from_clause, where_clause_str, params = _get_query_components(data_type, category, search_term, sort_by_pos)
+    # 1. 獲取查詢組件 (傳入 pos_filter 和 sort_by_pos)
+    select_clause, from_clause, where_clause_str, params = _get_query_components(data_type, category, search_term, pos_filter, sort_by_pos)
     
     if not select_clause:
         flash('錯誤: 無效的資料類型', 'danger')
@@ -616,12 +602,10 @@ def list_page(data_type):
     
     try:
         # 2. 計算總筆數 (使用 COUNT(DISTINCT T1.id) 確保計數正確)
-        # 由於 COUNT 只計數 ID，我們可以直接使用 T1.id
-        count_query_optimized = f"SELECT COUNT(DISTINCT T1.id) FROM {get_table_name(data_type)} AS T1"
         
         # 重新計算 COUNT 所需的 JOIN/WHERE 子句
-        # 這裡需要一個僅用於 COUNT 的 SELECT/FROM/WHERE 組件，它不包含 GROUP_CONCAT 或 DISTINCT
-        _, count_from_clause, count_where_clause_str, count_params = _get_query_components(data_type, category, search_term, False)
+        # 🚨 關鍵修改：傳入 pos_filter
+        _, count_from_clause, count_where_clause_str, count_params = _get_query_components(data_type, category, search_term, pos_filter, False)
         count_query_optimized = f"SELECT COUNT(DISTINCT T1.id) {count_from_clause} {count_where_clause_str}"
         
         total_items = conn.execute(count_query_optimized, count_params).fetchone()[0]
@@ -640,10 +624,9 @@ def list_page(data_type):
                 'id': 'T1.id',
                 'term': 'T1.term',
                 'timestamp': 'T1.id', 
-                'pos': 'pos_string_for_sort', # 🚨 關鍵: 按詞性排序
+                'pos': 'pos_string_for_sort',
             }
             sort_column = allowed_sorts.get(sort_by, 'T1.id') 
-            
             # 處理詞性排序 (NULLs first/last)
             if sort_by == 'pos':
                 # 讓沒有詞性的項目排在最後 (NULLS LAST)
@@ -670,17 +653,15 @@ def list_page(data_type):
             
             # 5. 處理項目詳細信息 (分類和詞性)
             items = []
-            # 必須使用您原有的工具函數來獲取分類和詞性字串
             for item_row in items_raw:
                 item_dict = dict(item_row)
                 item_id = item_dict['id']
                 
-                # 獲取分類字串 (需要 get_item_categories_string 函數存在)
+                # 獲取分類字串
                 item_dict['categories'] = get_item_categories_string(item_id, data_type)
                 
                 if data_type == 'vocab':
-                    # 獲取詞性字串 (需要 get_item_pos_string 函數存在)
-                    # 即使查詢中已經有 pos_string_for_sort，我們仍使用原函數以確保邏輯一致
+                    # 獲取詞性字串
                     item_dict['pos_string'] = get_item_pos_string(item_id)
                     
                 items.append(item_dict)
@@ -714,10 +695,14 @@ def list_page(data_type):
         search_term=search_term,
         sort_by=sort_by,
         sort_order=sort_order,
-        per_page=PER_PAGE            
+        per_page=PER_PAGE,
+        # 🚨 關鍵修改：新增傳遞給模板的參數
+        all_categories=get_all_categories(), # 新增：用於分類篩選下拉選單
+        pos_filter=pos_filter,               # 新增：用於詞性篩選下拉選單的預選
+        pos_list=MASTER_POS_TUPLES           # 新增：用於詞性篩選下拉選單選項
     )
-# ----------------- 編輯 (MODIFIED) -----------------
 
+# ----------------- 編輯 (保持不變) -----------------
 @app.route('/edit/<data_type>/<int:item_id>', methods=['GET', 'POST'])
 def edit_item(data_type, item_id):
     if data_type not in ['vocab', 'grammar']:
@@ -787,16 +772,14 @@ def edit_item(data_type, item_id):
     item = dict(item) 
     item['categories'] = get_item_categories_string(item_id, data_type)
     
-    # 🚨 關鍵：獲取詞性字串並轉換為列表，以便在前端預選
+    # 獲取詞性字串並轉換為列表，以便在前端預選
     if data_type == 'vocab':
         pos_string = get_item_pos_string(item_id)
         item['selected_pos_list'] = [p.strip() for p in pos_string.split(',') if p.strip()] # NEW
     
     # 傳遞完整的 MASTER_POS_LIST_RAW 給前端，因為前端需要顯示括號內的中文
     return render_template('edit_item.html', item=item, data_type=data_type, all_categories=all_categories, master_pos_list=MASTER_POS_LIST_RAW)
-
-# ----------------- 刪除 (MODIFIED) -----------------
-
+# ----------------- 刪除 (保持不變) -----------------
 @app.route('/delete/<data_type>/<int:item_id>', methods=['POST'])
 def delete_item(data_type, item_id):
     if data_type not in ['vocab', 'grammar']:
@@ -829,7 +812,7 @@ def delete_item(data_type, item_id):
         
     return redirect(url_for('list_page', data_type=data_type))
 
-# ----------------- 單字卡功能 (MODIFIED) -----------------
+# ----------------- 單字卡功能 (保持不變) -----------------
 
 @app.route('/flashcard/select')
 def flashcard_select():
@@ -846,8 +829,6 @@ def get_flashcard_query_parts(data_type, category_filter, pos_filter=None):
     """
     建立 Flashcard 查詢的 FROM, JOIN, WHERE 語句和對應的參數。
     返回: (SQL_FRAGMENT, PARAMS)
-    
-    🚨 關鍵修改: 調整單字表的詞性過濾邏輯以使用 item_pos_table
     """
     
     params = []
@@ -866,16 +847,23 @@ def get_flashcard_query_parts(data_type, category_filter, pos_filter=None):
     
     # 1. Category 過濾
     if category_filter and category_filter != 'all':
-        # 使用 INNER JOIN 確保只有包含該分類的項目被選中
-        from_join_parts.append(
-            f"""INNER JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = '{item_type}'
-               INNER JOIN category_table AS T3 ON T2.category_id = T3.id"""
-        )
-        where_clauses.append("T3.name = ?")
-        params.append(category_filter)
+        
+        # 🚨 關鍵修改：Flashcard 中也要處理 '__uncategorized__'
+        if category_filter == '__uncategorized__':
+            from_join_parts.append(
+                f"""LEFT JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = '{item_type}'"""
+            )
+            where_clauses.append("T2.category_id IS NULL")
+        else:
+            # 使用 INNER JOIN 確保只有包含該分類的項目被選中
+            from_join_parts.append(
+                f"""INNER JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = '{item_type}'
+                   INNER JOIN category_table AS T3 ON T2.category_id = T3.id"""
+            )
+            where_clauses.append("T3.name = ?")
+            params.append(category_filter)
     else:
-        # 如果不過濾分類，使用 LEFT JOIN (或根本不 JOIN) 以獲取所有項目
-        pass # 基礎查詢中暫時不加入 category JOIN，避免 COUNT 重複計算。將過濾邏輯放在 WHERE 條件中 (如果需要)。
+        pass 
 
     # 2. POS 過濾 (僅針對 vocab)
     if data_type == 'vocab' and pos_filter and pos_filter != 'all':
@@ -938,7 +926,7 @@ def flashcard_data():
 
     session['last_flashcard_filters'] = data
     session['flashcard_total_count'] = total_count
-    session.pop('flashcard_data', None) # 關鍵: 移除大數據
+    session.pop('flashcard_data', None) # 移除大數據
 
     last_index = session.get('last_flashcard_index', 0)
     if last_index >= total_count:
@@ -978,7 +966,6 @@ def api_get_flashcard(index):
 
     # 1. 處理單字 (vocab)
     if data_type in ['all', 'vocab']:
-        # 🚨 關鍵修改 1：移除 T1.part_of_speech，並在前端補上。
         vocab_select = "SELECT T1.id, T1.term, '' AS reading, T1.explanation, T1.example_sentence, 'vocab' as type"
         vocab_fragment, vocab_params = get_flashcard_query_parts('vocab', category_filter, pos_filter)
         vocab_query = f"{vocab_select} {vocab_fragment} GROUP BY T1.id"
@@ -987,7 +974,7 @@ def api_get_flashcard(index):
         
     # 2. 處理文法 (grammar)
     if data_type in ['all', 'grammar']:
-        # 修正：確保這裡的欄位與 vocab_select 完全匹配
+        # 確保這裡的欄位與 vocab_select 完全匹配
         grammar_select = "SELECT T1.id, T1.term, '' AS reading, T1.explanation, T1.example_sentence, 'grammar' as type"
         grammar_fragment, grammar_params = get_flashcard_query_parts('grammar', category_filter)
         grammar_query = f"{grammar_select} {grammar_fragment} GROUP BY T1.id"
@@ -1005,7 +992,7 @@ def api_get_flashcard(index):
         cursor.execute(final_query, params)
         card_data_list = cursor.fetchall()
         
-        # 4. 🚨 關鍵：手動將詞性資訊附加回單字卡數據中
+        # 4. 手動將詞性資訊附加回單字卡數據中
         cards = []
         for row in card_data_list:
             card_dict = dict(row)
@@ -1049,7 +1036,7 @@ def flashcard_deck():
         current_index = max(0, current_index)
         session['last_flashcard_index'] = current_index
     
-    # 建立篩選條件的總結文字 (不變)
+    # 建立篩選條件的總結文字
     data_map = {'all': '所有內容', 'vocab': '僅單字', 'grammar': '僅文法'}
     type_str = data_map.get(filters.get('data_type'), '未知內容')
     
@@ -1061,7 +1048,10 @@ def flashcard_deck():
         
     category_filter = filters.get('category_filter')
     if category_filter and category_filter != 'all':
-        parts.append(f"分類: {category_filter}")
+        if category_filter == '__uncategorized__':
+            parts.append("分類: 無分類項目")
+        else:
+            parts.append(f"分類: {category_filter}")
         
     summary_text = " | ".join(parts)
     
