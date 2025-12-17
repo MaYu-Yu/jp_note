@@ -5,15 +5,13 @@ import sqlite3
 import math
 from datetime import datetime
 import os, random
-# import json 
-# import re 
+import unicodedata
 
 app = Flask(__name__)
-# 💡 請務必修改為您自己的複雜字串！
 app.secret_key = 'your_super_secret_key' 
 DB_NAME = 'jp_db.db'
 PER_PAGE = 20 # 每頁顯示 20 筆資料
-BATCH_SIZE = 50 # 每批載入的卡片數量，已調整為 50 以符合您的 API 函數
+BATCH_SIZE = 20 # 每批載入的卡片數量 需與flashcard_deck的BATCH_SIZE大小一致
 
 # 詞性列表 (用於單字詞性篩選與新增快捷鍵)
 MASTER_POS_LIST_RAW = [
@@ -44,7 +42,7 @@ MASTER_POS_LIST_RAW = [
     '接尾 (接尾詞)',    
     '接頭 (接頭詞)',    
     
-    # --- 備用/不常見 ---
+    # --- 不常見 ---
     'Other (其他)'     
 ]
 # 預處理詞性列表，只保留縮寫 (例如: '名')
@@ -67,7 +65,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 1. 單字表 (移除 part_of_speech 欄位)
+    # 1. 單字表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS vocab_table (
             id INTEGER PRIMARY KEY,
@@ -77,7 +75,7 @@ def init_db():
         )
     ''')
     
-    # 2. 文法表 (不變)
+    # 2. 文法表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS grammar_table (
             id INTEGER PRIMARY KEY,
@@ -87,7 +85,7 @@ def init_db():
         )
     ''')
     
-    # 3. 分類主表 (Normalization - 不變)
+    # 3. 分類主表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS category_table (
             id INTEGER PRIMARY KEY,
@@ -95,7 +93,7 @@ def init_db():
         )
     ''')
 
-    # 4. 項目-分類 連結表 (Normalization - 不變)
+    # 4. 項目-分類 連結表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS item_category_table (
             item_id INTEGER NOT NULL,
@@ -106,7 +104,7 @@ def init_db():
         )
     ''')
     
-    # 5. 詞性主表 (New Table)
+    # 5. 詞性主表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pos_master_table (
             id INTEGER PRIMARY KEY,
@@ -114,7 +112,7 @@ def init_db():
         )
     ''')
     
-    # 6. 項目-詞性 連結表 (New Table)
+    # 6. 項目-詞性 連結表
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS item_pos_table (
             item_id INTEGER NOT NULL,
@@ -137,9 +135,176 @@ def init_db():
             
     conn.commit()
     conn.close()
+    
+# ----------------- SQL注入內容正規化 -----------------
+def backend_normalize(text):
+    if not text:
+        return ""
+    # 使用 NFKC 正規化：將全形英數、空格自動轉為半形
+    # 這會把 「ＡＢＣ １２３」 變成 "ABC 123"
+    text = unicodedata.normalize('NFKC', text)
+    
+    # 移除危險字元
+    for char in ["'", '"', ";", "\\"]:
+        text = text.replace(char, "")
+    
+    return text.strip()
+# ----------------- 日文假名轉換工具函數 (使用 Unicode 偏移) -----------------
+def _convert_kana(text, target_type='hiragana'):
+    """
+    利用 Unicode 偏移量，將平假名和片假名互相轉換。
+    - 片假名和其對應的平假名之間有固定的 Unicode 偏移量 (0x60)。
+    - 轉換範圍涵蓋大部分基礎假名、濁音、半濁音和小寫假名。
+    """
+    if not text:
+        return ""
+    
+    # Unicode 偏移量 (片假名起始 - 平假名起始)
+    OFFSET = 0x60
+    
+    # 片假名 (Full-width) 的 Unicode 範圍
+    KATAKANA_START_CODE = 0x30A1 # 'ァ'
+    KATAKANA_END_CODE = 0x30F6   # 'ヶ' (涵蓋濁音、小寫等常用字元)
+    
+    # 平假名 (Full-width) 的 Unicode 範圍
+    HIRAGANA_START_CODE = 0x3041 # 'ぁ'
+    HIRAGANA_END_CODE = 0x3096   # 'ヶ' 對應的平假名範圍
+    
+    converted_text = []
+    
+    for char in text:
+        char_code = ord(char)
+        
+        # 1. 片假名 -> 平假名
+        if target_type == 'hiragana' and KATAKANA_START_CODE <= char_code <= KATAKANA_END_CODE:
+            # 片假名轉平假名：減去 OFFSET
+            converted_text.append(chr(char_code - OFFSET))
+            
+        # 2. 平假名 -> 片假名
+        elif target_type == 'katakana' and HIRAGANA_START_CODE <= char_code <= HIRAGANA_END_CODE:
+            # 平假名轉片假名：加上 OFFSET
+            converted_text.append(chr(char_code + OFFSET))
+            
+        # 3. 其他字元（漢字、數字、標點符號、長音符號等）保持不變
+        else:
+            converted_text.append(char)
+            
+    return "".join(converted_text)
+
+# ----------------- 查詢組件生成函數 (用於處理 JOIN 和 WHERE 條件) -----------------
+def _get_query_components(data_type, category, search_term, pos_filter=None, sort_by_pos=False): 
+    """
+    根據參數生成基礎查詢的 SELECT/FROM, WHERE 子句和參數列表。
+    """
+    
+    table_name = get_table_name(data_type) 
+    
+    if data_type not in ['vocab', 'grammar']:
+        return None, None, None, None
+
+    term_column = 'term' 
+
+    # 基礎 SELECT 和 FROM
+    select_clause = f"T1.id, T1.{term_column}, T1.explanation, T1.example_sentence"
+    from_clause = f"FROM {table_name} AS T1"
+    where_clauses = []
+    params = []
+    is_distinct = False
+    
+    # 處理分類條件
+    if category:
+        if category == '__uncategorized__':
+            # LEFT JOIN item_category_table 並檢查連結是否為 NULL，找出無分類的項目
+            from_clause += """
+                LEFT JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = ?
+            """
+            params.append(data_type)
+            where_clauses.append("T2.category_id IS NULL")
+            is_distinct = True
+        else:
+            # 必須 JOIN item_category_table 和 category_table (特定分類篩選)
+            from_clause += """
+                JOIN item_category_table AS T2 ON T1.id = T2.item_id 
+                JOIN category_table AS T3 ON T2.category_id = T3.id
+            """
+            # 確保只篩選當前 data_type 的項目
+            where_clauses.append("T3.name = ? AND T2.item_type = ?")
+            params.extend([category, data_type])
+            is_distinct = True
+        
+    # 處理詞性 JOIN (包含篩選和排序)
+    if data_type == 'vocab' and (pos_filter or sort_by_pos):
+        
+        # 如果有篩選條件，我們必須使用 INNER JOIN
+        join_type = "INNER" if pos_filter else "LEFT"
+        
+        from_clause += f"""
+            {join_type} JOIN item_pos_table AS T_POS ON T1.id = T_POS.item_id 
+            {join_type} JOIN pos_master_table AS T_POS_M ON T_POS.pos_id = T_POS_M.id
+        """
+        
+        # 如果有篩選條件，增加 WHERE
+        if pos_filter:
+             where_clauses.append("T_POS_M.name = ?")
+             params.append(pos_filter)
+             
+        # 如果需要排序，增加 SELECT 子句
+        if sort_by_pos:
+            select_clause += ", GROUP_CONCAT(T_POS_M.name) AS pos_string_for_sort" 
+            
+        is_distinct = True # 只要有 JOIN，都可能需要 GROUP BY/DISTINCT
+
+    # 處理搜尋條件 (搜尋範圍涵蓋 term, explanation, example_sentence)
+    where_clause_str = ""
+    if where_clauses:
+        where_clause_str = " WHERE " + " AND ".join(where_clauses)
+    
+    if search_term:
+        # 1. 取得所有需要查詢的版本 (原始詞 + 轉換後的假名)
+        search_terms_to_check = {search_term} # 用 set 確保唯一性
+        
+        # 轉換為平假名並加入集合
+        search_term_hiragana = _convert_kana(search_term, 'hiragana')
+        if search_term_hiragana != search_term:
+            search_terms_to_check.add(search_term_hiragana)
+            
+        # 轉換為片假名並加入集合
+        search_term_katakana = _convert_kana(search_term, 'katakana')
+        if search_term_katakana != search_term and search_term_katakana != search_term_hiragana:
+            search_terms_to_check.add(search_term_katakana)
+            
+        # 2. 建立 OR 條件列表和參數列表
+        search_params = []
+        all_search_clauses = []
+        base_search_query = f"(T1.{term_column} LIKE ? OR T1.explanation LIKE ? OR T1.example_sentence LIKE ?)"
+        
+        # 3. 針對每個需要查詢的版本，建立一組查詢條件和參數
+        for term_to_check in search_terms_to_check:
+            all_search_clauses.append(base_search_query)
+            search_param = f"%{term_to_check}%"
+            search_params.extend([search_param, search_param, search_param]) 
+
+        # 4. 組合最終的 WHERE 條件
+        full_search_query = " OR ".join(all_search_clauses)
+        where_clauses.append(f"({full_search_query})") # 加上括號確保 AND/OR 優先級
+        params.extend(search_params)
+    
+    where_clause_str = ""
+    if where_clauses:
+        where_clause_str = " WHERE " + " AND ".join(where_clauses)
+    
+    if is_distinct:
+        # 如果有 JOIN 且沒有 GROUP BY，則使用 DISTINCT。如果使用了 GROUP_CONCAT，則需要 GROUP BY。
+        if sort_by_pos:
+            # 必須使用 GROUP BY，這樣才能使用 GROUP_CONCAT
+            return select_clause, from_clause, where_clause_str, params
+        else:
+            # 如果只是篩選，使用 DISTINCT
+            select_clause = "DISTINCT " + select_clause
+        
+    return select_clause, from_clause, where_clause_str, params
 
 # ----------------- 詞性處理工具函數-----------------
-
 def get_pos_id(name, conn):
     """取得詞性ID，必須從 pos_master_table 獲得。返回 pos_id"""
     if not name:
@@ -192,6 +357,32 @@ def get_item_pos_string(item_id):
     return ','.join(pos_list)
 
 # ----------------- 分類處理工具函數-----------------
+def get_all_categories():
+    """獲取所有分類名稱的列表"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT name FROM category_table ORDER BY name')
+    categories = [row['name'] for row in cursor.fetchall()]
+    conn.close()
+    return categories
+
+def get_all_categories_with_counts():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT 
+            T1.name, 
+            COUNT(T2.item_id) AS count
+        FROM category_table AS T1
+        LEFT JOIN item_category_table AS T2 ON T1.id = T2.category_id
+        GROUP BY T1.name
+        ORDER BY T1.name
+    ''')
+    
+    categories = [{'name': row['name'], 'count': row['count']} for row in cursor.fetchall()]
+    conn.close()
+    return categories
 
 def get_or_create_category(name, conn):
     """取得分類ID，如果不存在則創建它。返回 category_id"""
@@ -251,47 +442,112 @@ def get_item_categories_string(item_id, item_type):
     categories = [row['name'] for row in cursor.fetchall()]
     conn.close()
     return ', '.join(categories)
+# ----------------- 單字卡 -----------------
+def get_flashcard_query_parts(data_type, category_filter, pos_filter=None):
+    """
+    建立 Flashcard 查詢的 FROM, JOIN, WHERE 語句和對應的參數。
+    返回: (SQL_FRAGMENT, PARAMS)
+    """
+    
+    params = []
+    
+    if data_type == 'vocab':
+        table_name = 'vocab_table'
+        item_type = 'vocab'
+    elif data_type == 'grammar':
+        table_name = 'grammar_table'
+        item_type = 'grammar'
+    else:
+        return ("", [])
 
-# ----------------- 首頁與清單 -----------------
+    from_join_parts = [f"FROM {table_name} AS T1"]
+    where_clauses = ["1=1"]
+    
+    # 1. Category 過濾
+    if category_filter and category_filter != 'all':
+        
+        if category_filter == '__uncategorized__':
+            from_join_parts.append(
+                f"""LEFT JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = '{item_type}'"""
+            )
+            where_clauses.append("T2.category_id IS NULL")
+        else:
+            # 使用 INNER JOIN 確保只有包含該分類的項目被選中
+            from_join_parts.append(
+                f"""INNER JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = '{item_type}'
+                   INNER JOIN category_table AS T3 ON T2.category_id = T3.id"""
+            )
+            where_clauses.append("T3.name = ?")
+            params.append(category_filter)
+    else:
+        pass 
 
+    # 2. POS 過濾 (僅針對 vocab)
+    if data_type == 'vocab' and pos_filter and pos_filter != 'all':
+        pos_abbr = pos_filter.split(' ')[0].strip() if ' ' in pos_filter else pos_filter
+        
+        # 使用 INNER JOIN item_pos_table 進行詞性過濾
+        from_join_parts.append(
+            f"""INNER JOIN item_pos_table AS T_POS ON T1.id = T_POS.item_id
+               INNER JOIN pos_master_table AS T_POS_M ON T_POS.pos_id = T_POS_M.id"""
+        )
+        where_clauses.append("T_POS_M.name = ?")
+        params.append(pos_abbr)
+
+    # 重新處理 FROM/JOIN 語句
+    from_join = " ".join(from_join_parts)
+    where_sql = " WHERE " + " AND ".join(where_clauses)
+    
+    return (f"{from_join} {where_sql}", params)
+
+# ----------------- URL部分 -----------------
 @app.route('/')
 def home():
+    """API 路由：首頁。"""
     return render_template('home.html')
 
-def get_all_categories():
-    """獲取所有分類名稱的列表"""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT name FROM category_table ORDER BY name')
-    categories = [row['name'] for row in cursor.fetchall()]
-    conn.close()
-    return categories
-
+# ----------------- 分類 categories -----------------
 @app.route('/categories_overview')
 def categories_overview():
+    """API 路由：分類總覽。"""
     categories = get_all_categories_with_counts()
     return render_template('categories_overview.html', categories=categories)
 
-def get_all_categories_with_counts():
+@app.route('/api/add_category', methods=['POST'])
+def api_add_category():
+    """API 路由：新增分類。"""
+    data = request.get_json()
+    category_name = data.get('name', '').strip()
+
+    if not category_name:
+        return jsonify({'success': False, 'message': '分類名稱不能為空'}), 400
+    
+    # 沿用你現有的後端規範化函式，確保資料安全
+    normalized_name = backend_normalize(category_name)
+
     conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT 
-            T1.name, 
-            COUNT(T2.item_id) AS count
-        FROM category_table AS T1
-        LEFT JOIN item_category_table AS T2 ON T1.id = T2.category_id
-        GROUP BY T1.name
-        ORDER BY T1.name
-    ''')
-    
-    categories = [{'name': row['name'], 'count': row['count']} for row in cursor.fetchall()]
-    conn.close()
-    return categories
+    try:
+        cursor = conn.cursor()
+        # 檢查是否重複
+        cursor.execute('SELECT id FROM category_table WHERE name = ?', (normalized_name,))
+        if cursor.fetchone():
+            return jsonify({'success': False, 'message': f'分類「{normalized_name}」已存在。'}), 409
+
+        # 執行插入
+        cursor.execute('INSERT INTO category_table (name) VALUES (?)', (normalized_name,))
+        conn.commit()
+        
+        flash(f'成功建立分類：{normalized_name}', 'success')
+        return jsonify({'success': True})
+    except sqlite3.Error as e:
+        conn.rollback()
+        return jsonify({'success': False, 'message': f'資料庫錯誤: {e}'}), 500
+    finally:
+        conn.close()
+        
 @app.route('/api/edit_category/<old_name>', methods=['POST'])
 def api_edit_category(old_name):
-    """API 路由：編輯分類名稱。"""
+    """API 路由：編輯分類。"""
     conn = get_db_connection()
     try:
         data = request.get_json()
@@ -305,7 +561,7 @@ def api_edit_category(old_name):
             cursor = conn.cursor()
             cursor.execute('SELECT id FROM category_table WHERE name = ?', (old_name,))
             if cursor.fetchone():
-                 return jsonify({'success': True, 'message': '名稱未更改'}), 200 # 無需變更
+                 return jsonify({'success': True, 'message': '名稱未更改'}), 200
             else:
                  return jsonify({'success': False, 'message': '原分類不存在'}), 404
 
@@ -331,8 +587,10 @@ def api_edit_category(old_name):
         return jsonify({'success': False, 'message': f'資料庫錯誤: {e}'}), 500
     finally:
         conn.close()
+        
 @app.route('/api/delete_category/<category_name>', methods=['POST'])
 def api_delete_category(category_name):
+    """API 路由：刪除分類。"""
     conn = get_db_connection()
     try:
         cursor = conn.cursor()
@@ -361,10 +619,9 @@ def api_delete_category(category_name):
     finally:
         conn.close()
 
-# ----------------- 新增 (MODIFIED) -----------------
-
 @app.route('/add/<data_type>', methods=['GET', 'POST'])
 def add_item(data_type):
+    """新增單字或文法至資料庫。"""
     if data_type not in ['vocab', 'grammar']:
         return redirect(url_for('home'))
 
@@ -372,10 +629,11 @@ def add_item(data_type):
     all_categories = get_all_categories()
     
     if request.method == 'POST':
-        term = request.form['term']
-        explanation = request.form['explanation']
-        example_sentence = request.form.get('example_sentence', '')
-
+        term = backend_normalize(request.form['term'])
+        explanation = backend_normalize(request.form['explanation'])
+        example_sentence = backend_normalize(request.form.get('example_sentence', ''))
+        
+        
         # 獲取分類數據
         selected_categories = request.form.getlist('selected_categories')
         new_categories_str = request.form.get('new_categories', '')
@@ -389,7 +647,6 @@ def add_item(data_type):
             cursor = conn.cursor()
             
             if data_type == 'vocab':
-                # 🚨 關鍵修改：從 SQL 語句中移除 part_of_speech 欄位
                 cursor.execute(
                     'INSERT INTO vocab_table (term, explanation, example_sentence) VALUES (?, ?, ?)',
                     (term, explanation, example_sentence)
@@ -422,8 +679,119 @@ def add_item(data_type):
     template_name = f'add_{data_type}.html'
     return render_template(template_name, master_pos_list=MASTER_POS_LIST_RAW, all_categories=all_categories)
 
+# ----------------- 編輯 -----------------
+@app.route('/edit/<data_type>/<int:item_id>', methods=['GET', 'POST'])
+def edit_item(data_type, item_id):
+    """編輯單字或文法至資料庫。"""
+    if data_type not in ['vocab', 'grammar']:
+        return redirect(url_for('home'))
+
+    table_name = get_table_name(data_type)
+    data_type_display = '單字' if data_type == 'vocab' else '文法'
+    conn = get_db_connection()
+    all_categories = get_all_categories()
+    
+    if request.method == 'POST':
+        term = request.form['term']
+        explanation = request.form['explanation']
+        example_sentence = request.form.get('example_sentence', '')
+
+        selected_categories = request.form.getlist('selected_categories')
+        new_categories_str = request.form.get('new_categories', '')
+        
+        combined_categories = selected_categories + [c.strip() for c in new_categories_str.split(',') if c.strip()]
+        category_string = ','.join(set(combined_categories))
+        
+        # 獲取詞性數據 (僅 vocab)
+        selected_pos_list = request.form.getlist('selected_pos')
+
+        try:
+            cursor = conn.cursor()
+            
+            # 1. 更新主表
+            if data_type == 'vocab':
+                cursor.execute(
+                    f'UPDATE {table_name} SET term=?, explanation=?, example_sentence=? WHERE id=?',
+                    (term, explanation, example_sentence, item_id)
+                )
+            else:
+                cursor.execute(
+                    f'UPDATE {table_name} SET term=?, explanation=?, example_sentence=? WHERE id=?',
+                    (term, explanation, example_sentence, item_id)
+                )
+
+            # 2. 更新分類連結表
+            update_item_categories(item_id, data_type, category_string, conn)
+            
+            # 3. 更新詞性連結表 (僅 vocab)
+            if data_type == 'vocab':
+                update_item_pos(item_id, selected_pos_list, conn) # NEW
+            
+            conn.commit()
+            flash(f'{data_type_display}「{term}」已成功更新！', 'success')
+            return redirect(url_for('list_page', data_type=data_type))
+        except sqlite3.Error as e:
+            conn.rollback()
+            flash(f'更新失敗: {e}', 'danger')
+        finally:
+            conn.close()
+
+    # GET 請求
+    cursor = conn.cursor()
+    cursor.execute(f'SELECT * FROM {table_name} WHERE id = ?', (item_id,))
+    item = cursor.fetchone()
+    conn.close()
+
+    if item is None:
+        flash(f'找不到 ID 為 {item_id} 的 {data_type_display}。', 'danger')
+        return redirect(url_for('list_page', data_type=data_type))
+
+    item = dict(item) 
+    item['categories'] = get_item_categories_string(item_id, data_type)
+    
+    # 獲取詞性字串並轉換為列表，以便在前端預選
+    if data_type == 'vocab':
+        pos_string = get_item_pos_string(item_id)
+        item['selected_pos_list'] = [p.strip() for p in pos_string.split(',') if p.strip()] # NEW
+    
+    # 傳遞完整的 MASTER_POS_LIST_RAW 給前端，因為前端需要顯示括號內的中文
+    return render_template('edit_item.html', item=item, data_type=data_type, all_categories=all_categories, master_pos_list=MASTER_POS_LIST_RAW)
+
+@app.route('/delete/<data_type>/<int:item_id>', methods=['POST'])
+def delete_item(data_type, item_id):
+    """刪除資料庫內的單字或文法。"""
+    if data_type not in ['vocab', 'grammar']:
+        return redirect(url_for('home'))
+
+    table_name = get_table_name(data_type)
+    data_type_display = '單字' if data_type == 'vocab' else '文法'
+    conn = get_db_connection()
+    
+    try:
+        cursor = conn.cursor()
+        # 1. 刪除 item_category_table 中的連結
+        cursor.execute('DELETE FROM item_category_table WHERE item_id = ? AND item_type = ?', (item_id, data_type))
+        
+        # 2. 刪除 item_pos_table 中的連結 (僅 vocab)
+        if data_type == 'vocab':
+            cursor.execute('DELETE FROM item_pos_table WHERE item_id = ?', (item_id,)) # NEW
+        
+        # 3. 刪除主表中的項目
+        cursor.execute(f'DELETE FROM {table_name} WHERE id = ?', (item_id,))
+        
+        conn.commit()
+        flash(f'該筆{data_type_display}已成功刪除。', 'success')
+    except sqlite3.Error as e:
+        conn.rollback()
+        flash(f'刪除失敗: {e}', 'danger')
+    finally:
+        conn.close()
+        
+    return redirect(url_for('list_page', data_type=data_type))
+
 @app.route('/add/vocab', methods=['GET', 'POST'])
 def add_vocab():
+    """API 路由：新增單字。"""
     initial_category = request.args.get('category', None)
     
     if request.method == 'POST':
@@ -437,6 +805,7 @@ def add_vocab():
 
 @app.route('/add/grammar', methods=['GET', 'POST'])
 def add_grammar():
+    """API 路由：新增文法。"""
     initial_category = request.args.get('category', None)
     
     if request.method == 'POST':
@@ -444,7 +813,6 @@ def add_grammar():
 
     return render_template('add_grammar.html', 
                            all_categories=get_all_categories(), 
-                           # 🔑 傳遞給模板
                            initial_category=initial_category
                           )
 
@@ -487,99 +855,12 @@ class PaginationMock:
             
         return final_pages
 
-# ----------------- 查詢組件生成函數 (用於處理 JOIN 和 WHERE 條件) -----------------
-
-def _get_query_components(data_type, category, search_term, pos_filter=None, sort_by_pos=False): 
-    """
-    根據參數生成基礎查詢的 SELECT/FROM, WHERE 子句和參數列表。
-    """
-    
-    table_name = get_table_name(data_type) 
-    
-    if data_type not in ['vocab', 'grammar']:
-        return None, None, None, None
-
-    term_column = 'term' 
-
-    # 基礎 SELECT 和 FROM
-    select_clause = f"T1.id, T1.{term_column}, T1.explanation, T1.example_sentence"
-    from_clause = f"FROM {table_name} AS T1"
-    where_clauses = []
-    params = []
-    is_distinct = False
-    
-    # 處理分類條件: 🚨 關鍵修改：新增 '__uncategorized__' 處理
-    if category:
-        if category == '__uncategorized__':
-            # LEFT JOIN item_category_table 並檢查連結是否為 NULL，找出無分類的項目
-            from_clause += """
-                LEFT JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = ?
-            """
-            params.append(data_type)
-            where_clauses.append("T2.category_id IS NULL")
-            is_distinct = True
-        else:
-            # 必須 JOIN item_category_table 和 category_table (特定分類篩選)
-            from_clause += """
-                JOIN item_category_table AS T2 ON T1.id = T2.item_id 
-                JOIN category_table AS T3 ON T2.category_id = T3.id
-            """
-            # 確保只篩選當前 data_type 的項目
-            where_clauses.append("T3.name = ? AND T2.item_type = ?")
-            params.extend([category, data_type])
-            is_distinct = True
-        
-    # 處理詞性 JOIN (包含篩選和排序)
-    if data_type == 'vocab' and (pos_filter or sort_by_pos):
-        
-        # 如果有篩選條件，我們必須使用 INNER JOIN
-        join_type = "INNER" if pos_filter else "LEFT"
-        
-        from_clause += f"""
-            {join_type} JOIN item_pos_table AS T_POS ON T1.id = T_POS.item_id 
-            {join_type} JOIN pos_master_table AS T_POS_M ON T_POS.pos_id = T_POS_M.id
-        """
-        
-        # 如果有篩選條件，增加 WHERE
-        if pos_filter:
-             where_clauses.append("T_POS_M.name = ?")
-             params.append(pos_filter)
-             
-        # 如果需要排序，增加 SELECT 子句
-        if sort_by_pos:
-            select_clause += ", GROUP_CONCAT(T_POS_M.name) AS pos_string_for_sort" 
-            
-        is_distinct = True # 只要有 JOIN，都可能需要 GROUP BY/DISTINCT
-
-    # 處理搜尋條件 (搜尋範圍涵蓋 term, explanation, example_sentence)
-    if search_term:
-        # 使用 T1.欄位名稱來避免歧義
-        search_query = f"(T1.{term_column} LIKE ? OR T1.explanation LIKE ? OR T1.example_sentence LIKE ?)"
-        where_clauses.append(search_query)
-        search_param = f"%{search_term}%"
-        params.extend([search_param, search_param, search_param])
-    
-    where_clause_str = ""
-    if where_clauses:
-        where_clause_str = " WHERE " + " AND ".join(where_clauses)
-    
-    if is_distinct:
-        # 如果有 JOIN 且沒有 GROUP BY，則使用 DISTINCT。如果使用了 GROUP_CONCAT，則需要 GROUP BY。
-        if sort_by_pos:
-            # 必須使用 GROUP BY，這樣才能使用 GROUP_CONCAT
-            return select_clause, from_clause, where_clause_str, params
-        else:
-            # 如果只是篩選，使用 DISTINCT
-            select_clause = "DISTINCT " + select_clause
-        
-    return select_clause, from_clause, where_clause_str, params
-
 @app.route('/list/<data_type>', methods=['GET'])
 def list_page(data_type):
+    """API 路由：單字或文法清單。"""
     page = request.args.get('page', 1, type=int)
     category = request.args.get('category')
     search_term = request.args.get('search')
-    # 🚨 新增：接收詞性篩選參數
     pos_filter = request.args.get('pos') 
     
     sort_by = request.args.get('sort_by', 'id')
@@ -587,7 +868,7 @@ def list_page(data_type):
     
     sort_by_pos = (data_type == 'vocab' and sort_by == 'pos')
     
-    # 1. 獲取查詢組件 (傳入 pos_filter 和 sort_by_pos)
+    # 1. 獲取查詢組件
     select_clause, from_clause, where_clause_str, params = _get_query_components(data_type, category, search_term, pos_filter, sort_by_pos)
     
     if not select_clause:
@@ -602,9 +883,6 @@ def list_page(data_type):
     
     try:
         # 2. 計算總筆數 (使用 COUNT(DISTINCT T1.id) 確保計數正確)
-        
-        # 重新計算 COUNT 所需的 JOIN/WHERE 子句
-        # 🚨 關鍵修改：傳入 pos_filter
         _, count_from_clause, count_where_clause_str, count_params = _get_query_components(data_type, category, search_term, pos_filter, False)
         count_query_optimized = f"SELECT COUNT(DISTINCT T1.id) {count_from_clause} {count_where_clause_str}"
         
@@ -672,7 +950,6 @@ def list_page(data_type):
             page = 1 
 
     except Exception as e:
-        # 打印錯誤以便調試
         print(f"資料庫查詢錯誤: {e}") 
         flash(f'資料庫查詢失敗: {e}', 'danger')
         total_items = 0
@@ -696,126 +973,16 @@ def list_page(data_type):
         sort_by=sort_by,
         sort_order=sort_order,
         per_page=PER_PAGE,
-        # 🚨 關鍵修改：新增傳遞給模板的參數
-        all_categories=get_all_categories(), # 新增：用於分類篩選下拉選單
-        pos_filter=pos_filter,               # 新增：用於詞性篩選下拉選單的預選
-        pos_list=MASTER_POS_TUPLES           # 新增：用於詞性篩選下拉選單選項
+        all_categories=get_all_categories(), 
+        pos_filter=pos_filter,              
+        pos_list=MASTER_POS_TUPLES           
     )
 
-# ----------------- 編輯 (保持不變) -----------------
-@app.route('/edit/<data_type>/<int:item_id>', methods=['GET', 'POST'])
-def edit_item(data_type, item_id):
-    if data_type not in ['vocab', 'grammar']:
-        return redirect(url_for('home'))
-
-    table_name = get_table_name(data_type)
-    data_type_display = '單字' if data_type == 'vocab' else '文法'
-    conn = get_db_connection()
-    all_categories = get_all_categories()
-    
-    if request.method == 'POST':
-        term = request.form['term']
-        explanation = request.form['explanation']
-        example_sentence = request.form.get('example_sentence', '')
-
-        selected_categories = request.form.getlist('selected_categories')
-        new_categories_str = request.form.get('new_categories', '')
-        
-        combined_categories = selected_categories + [c.strip() for c in new_categories_str.split(',') if c.strip()]
-        category_string = ','.join(set(combined_categories))
-        
-        # 獲取詞性數據 (僅 vocab)
-        selected_pos_list = request.form.getlist('selected_pos') # NEW
-
-        try:
-            cursor = conn.cursor()
-            
-            # 1. 更新主表
-            if data_type == 'vocab':
-                # 🚨 關鍵修改：從 UPDATE 語句中移除 part_of_speech
-                cursor.execute(
-                    f'UPDATE {table_name} SET term=?, explanation=?, example_sentence=? WHERE id=?',
-                    (term, explanation, example_sentence, item_id)
-                )
-            else:
-                cursor.execute(
-                    f'UPDATE {table_name} SET term=?, explanation=?, example_sentence=? WHERE id=?',
-                    (term, explanation, example_sentence, item_id)
-                )
-
-            # 2. 更新分類連結表
-            update_item_categories(item_id, data_type, category_string, conn)
-            
-            # 3. 更新詞性連結表 (僅 vocab)
-            if data_type == 'vocab':
-                update_item_pos(item_id, selected_pos_list, conn) # NEW
-            
-            conn.commit()
-            flash(f'{data_type_display}「{term}」已成功更新！', 'success')
-            return redirect(url_for('list_page', data_type=data_type))
-        except sqlite3.Error as e:
-            conn.rollback()
-            flash(f'更新失敗: {e}', 'danger')
-        finally:
-            conn.close()
-
-    # GET 請求
-    cursor = conn.cursor()
-    cursor.execute(f'SELECT * FROM {table_name} WHERE id = ?', (item_id,))
-    item = cursor.fetchone()
-    conn.close()
-
-    if item is None:
-        flash(f'找不到 ID 為 {item_id} 的 {data_type_display}。', 'danger')
-        return redirect(url_for('list_page', data_type=data_type))
-
-    item = dict(item) 
-    item['categories'] = get_item_categories_string(item_id, data_type)
-    
-    # 獲取詞性字串並轉換為列表，以便在前端預選
-    if data_type == 'vocab':
-        pos_string = get_item_pos_string(item_id)
-        item['selected_pos_list'] = [p.strip() for p in pos_string.split(',') if p.strip()] # NEW
-    
-    # 傳遞完整的 MASTER_POS_LIST_RAW 給前端，因為前端需要顯示括號內的中文
-    return render_template('edit_item.html', item=item, data_type=data_type, all_categories=all_categories, master_pos_list=MASTER_POS_LIST_RAW)
-# ----------------- 刪除 (保持不變) -----------------
-@app.route('/delete/<data_type>/<int:item_id>', methods=['POST'])
-def delete_item(data_type, item_id):
-    if data_type not in ['vocab', 'grammar']:
-        return redirect(url_for('home'))
-
-    table_name = get_table_name(data_type)
-    data_type_display = '單字' if data_type == 'vocab' else '文法'
-    conn = get_db_connection()
-    
-    try:
-        cursor = conn.cursor()
-        
-        # 1. 刪除 item_category_table 中的連結
-        cursor.execute('DELETE FROM item_category_table WHERE item_id = ? AND item_type = ?', (item_id, data_type))
-        
-        # 2. 刪除 item_pos_table 中的連結 (僅 vocab)
-        if data_type == 'vocab':
-            cursor.execute('DELETE FROM item_pos_table WHERE item_id = ?', (item_id,)) # NEW
-        
-        # 3. 刪除主表中的項目
-        cursor.execute(f'DELETE FROM {table_name} WHERE id = ?', (item_id,))
-        
-        conn.commit()
-        flash(f'該筆{data_type_display}已成功刪除。', 'success')
-    except sqlite3.Error as e:
-        conn.rollback()
-        flash(f'刪除失敗: {e}', 'danger')
-    finally:
-        conn.close()
-        
-    return redirect(url_for('list_page', data_type=data_type))
-
-# ----------------- 單字卡功能 (保持不變) -----------------
+# ----------------- 單字卡功能 -----------------
 
 @app.route('/flashcard/select')
 def flashcard_select():
+    """API 路由：單字卡選擇功能。"""
     all_categories = get_all_categories()
     all_pos = MASTER_POS_LIST_RAW # 傳遞完整列表給前端顯示
     last_filters = session.get('last_flashcard_filters', {})
@@ -824,67 +991,10 @@ def flashcard_select():
                            all_categories=all_categories, 
                            all_pos=all_pos,
                            last_filters=last_filters)
-
-def get_flashcard_query_parts(data_type, category_filter, pos_filter=None):
-    """
-    建立 Flashcard 查詢的 FROM, JOIN, WHERE 語句和對應的參數。
-    返回: (SQL_FRAGMENT, PARAMS)
-    """
-    
-    params = []
-    
-    if data_type == 'vocab':
-        table_name = 'vocab_table'
-        item_type = 'vocab'
-    elif data_type == 'grammar':
-        table_name = 'grammar_table'
-        item_type = 'grammar'
-    else:
-        return ("", [])
-
-    from_join_parts = [f"FROM {table_name} AS T1"]
-    where_clauses = ["1=1"]
-    
-    # 1. Category 過濾
-    if category_filter and category_filter != 'all':
-        
-        # 🚨 關鍵修改：Flashcard 中也要處理 '__uncategorized__'
-        if category_filter == '__uncategorized__':
-            from_join_parts.append(
-                f"""LEFT JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = '{item_type}'"""
-            )
-            where_clauses.append("T2.category_id IS NULL")
-        else:
-            # 使用 INNER JOIN 確保只有包含該分類的項目被選中
-            from_join_parts.append(
-                f"""INNER JOIN item_category_table AS T2 ON T1.id = T2.item_id AND T2.item_type = '{item_type}'
-                   INNER JOIN category_table AS T3 ON T2.category_id = T3.id"""
-            )
-            where_clauses.append("T3.name = ?")
-            params.append(category_filter)
-    else:
-        pass 
-
-    # 2. POS 過濾 (僅針對 vocab)
-    if data_type == 'vocab' and pos_filter and pos_filter != 'all':
-        pos_abbr = pos_filter.split(' ')[0].strip() if ' ' in pos_filter else pos_filter
-        
-        # 使用 INNER JOIN item_pos_table 進行詞性過濾
-        from_join_parts.append(
-            f"""INNER JOIN item_pos_table AS T_POS ON T1.id = T_POS.item_id
-               INNER JOIN pos_master_table AS T_POS_M ON T_POS.pos_id = T_POS_M.id"""
-        )
-        where_clauses.append("T_POS_M.name = ?")
-        params.append(pos_abbr)
-
-    # 重新處理 FROM/JOIN 語句
-    from_join = " ".join(from_join_parts)
-    where_sql = " WHERE " + " AND ".join(where_clauses)
-    
-    return (f"{from_join} {where_sql}", params)
     
 @app.route('/flashcard/data', methods=['POST'])
 def flashcard_data():
+    """單字卡內容。"""
     data = request.get_json()
     data_type = data.get('data_type', 'all')
     category_filter = data.get('category_filter', 'all')
@@ -962,7 +1072,6 @@ def api_get_flashcard(index):
     
     queries = []
     params = []
-    BATCH_SIZE = 20 
 
     # 1. 處理單字 (vocab)
     if data_type in ['all', 'vocab']:
@@ -1013,9 +1122,40 @@ def api_get_flashcard(index):
         conn.close()
         print(f"!!! API ERROR: 一般錯誤: {e}")
         return jsonify({'success': False, 'message': f'一般錯誤: {e}'}), 500
+    
+@app.route('/api/update_index', methods=['POST'])
+def update_flashcard_index():
+    """接收新的單字卡索引並更新 Session 中的記憶點。"""
+    
+    data = request.get_json()
+    new_index = data.get('index') 
+    
+    if new_index is None:
+        return jsonify({'success': False, 'message': 'Missing index in request body'}), 400
         
+    try:
+        new_index = int(new_index) 
+    except ValueError:
+        return jsonify({'success': False, 'message': 'Invalid index type'}), 400
+        
+    total_count = session.get('flashcard_total_count', 0)
+    
+    if total_count == 0:
+        return jsonify({'success': False, 'message': '單字卡為空，無法更新索引'}), 400
+        
+    if 0 <= new_index < total_count:
+        session['last_flashcard_index'] = new_index
+        return jsonify({'success': True, 'new_index': new_index})
+    elif new_index >= total_count:
+        session['last_flashcard_index'] = 0
+        return jsonify({'success': True, 'new_index': 0, 'wrapped': True})
+    else: 
+        session['last_flashcard_index'] = total_count - 1 
+        return jsonify({'success': True, 'new_index': total_count - 1, 'wrapped': True})
+            
 @app.route('/flashcard/deck')
 def flashcard_deck():
+    """API 單字卡顯示區"""
     action = request.args.get('action', 'resume')
     
     filters = session.get('last_flashcard_filters', {})
@@ -1059,39 +1199,8 @@ def flashcard_deck():
                            current_index=current_index, 
                            total_count=total_count, 
                            filter_summary=summary_text)
-# -------------------------------------------------------------
-
-@app.route('/api/update_index', methods=['POST'])
-def update_flashcard_index():
-    """接收新的單字卡索引並更新 Session 中的記憶點。"""
-    
-    data = request.get_json()
-    new_index = data.get('index') 
-    
-    if new_index is None:
-        return jsonify({'success': False, 'message': 'Missing index in request body'}), 400
-        
-    try:
-        new_index = int(new_index) 
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid index type'}), 400
-        
-    total_count = session.get('flashcard_total_count', 0)
-    
-    if total_count == 0:
-        return jsonify({'success': False, 'message': '單字卡為空，無法更新索引'}), 400
-        
-    if 0 <= new_index < total_count:
-        session['last_flashcard_index'] = new_index
-        return jsonify({'success': True, 'new_index': new_index})
-    elif new_index >= total_count:
-        session['last_flashcard_index'] = 0
-        return jsonify({'success': True, 'new_index': 0, 'wrapped': True})
-    else: 
-        session['last_flashcard_index'] = total_count - 1 
-        return jsonify({'success': True, 'new_index': total_count - 1, 'wrapped': True})
+      
 # ----------------- 啟動應用程式 -----------------
-
 if __name__ == '__main__':
     # 確保資料庫在應用程式啟動時只創建一次
     init_db() 

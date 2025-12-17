@@ -25,11 +25,24 @@
             background-color: #f0f8ff;
             /* 淺藍色背景，提示可點擊 */
         }
-        
-        /* 🚨 NEW: 調整以適應篩選下拉選單的寬度 */
+
+        /* 調整以適應篩選下拉選單的寬度 */
         .filter-select {
             max-width: 150px;
             /* 讓下拉選單不會太寬 */
+        }
+
+        /* WebKit (Chrome, Safari, Edge) 和 W3C 標準 */
+        input[type="search"]::placeholder,
+        input[type="search"]::-webkit-input-placeholder {
+            color: rgba(68, 68, 68, 0.3);
+        }
+
+        /* Firefox (新舊版) */
+        input[type="search"]::-moz-placeholder,
+        input[type="search"]:-moz-placeholder {
+            color: rgba(68, 68, 68, 0.3);
+            opacity: 1;
         }
     </style>
 </head>
@@ -40,10 +53,9 @@
             {{ '📚 單字清單' if data_type == 'vocab' else '📑 文法清單' }}
             {% if current_category %}
             <span class="badge bg-warning text-dark">
-                分類: 
-                {# 🚨 關鍵修改：判斷是否為「無分類」 #}
+                分類:
                 {% if current_category == '__uncategorized__' %}
-                無分類項目 
+                無分類項目
                 {% else %}
                 {{ current_category }}
                 {% endif %}
@@ -59,7 +71,7 @@
         {% endfor %}
         {% endif %}
         {% endwith %}
-        
+
         {# 🎯 搜尋與篩選區塊 #}
         <form method="GET" action="{{ url_for('list_page', data_type=data_type, page=1) }}"
             class="mb-4 d-flex flex-wrap gap-2 align-items-center">
@@ -67,10 +79,10 @@
             {# 隱藏的篩選參數，用於保留非搜尋/篩選的狀態 #}
             <input type="hidden" name="sort_by" value="{{ sort_by }}">
             <input type="hidden" name="sort_order" value="{{ sort_order }}">
-            
-            {# 搜尋框 #}
+
+            {# 搜尋框 漢字無法以平假片假搜尋 #}
             <div class="input-group" style="max-width: 350px;">
-                <input type="search" class="form-control" placeholder="搜尋 單字/文法 或解釋..." name="search"
+                <input type="search" class="form-control" placeholder="由單字,文法,例句搜尋" name="search"
                     value="{{ search_term if search_term else '' }}" aria-label="搜尋">
                 <button class="btn btn-outline-secondary" type="submit">🔍 搜尋</button>
                 {# 清除所有篩選/搜尋按鈕 #}
@@ -84,7 +96,8 @@
             {% if data_type == 'vocab' %}
             <div class="d-flex align-items-center gap-1">
                 <label for="pos-filter-select" class="form-label mb-0 fw-bold">詞性:</label>
-                <select id="pos-filter-select" name="pos" class="form-select filter-select" onchange="this.form.submit()">
+                <select id="pos-filter-select" name="pos" class="form-select filter-select"
+                    onchange="this.form.submit()">
                     <option value="">全部詞性</option>
                     {% for pos_abbr, pos_full in pos_list %}
                     <option value="{{ pos_abbr }}" {% if pos_filter==pos_abbr %}selected{% endif %}>
@@ -98,9 +111,9 @@
             {# 分類篩選 #}
             <div class="d-flex align-items-center gap-1">
                 <label for="category-filter-select" class="form-label mb-0 fw-bold">分類:</label>
-                <select id="category-filter-select" name="category" class="form-select filter-select" onchange="this.form.submit()">
+                <select id="category-filter-select" name="category" class="form-select filter-select"
+                    onchange="this.form.submit()">
                     <option value="">全部分類</option>
-                    {# 🚨 關鍵修改：新增「無分類」選項 #}
                     <option value="__uncategorized__" {% if current_category=='__uncategorized__' %}selected{% endif %}>
                         無分類
                     </option>
@@ -118,20 +131,31 @@
             <button onclick="history.back()" class="btn btn-secondary">← 返回上頁</button>
             <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
             {% set add_route = 'add_vocab' if data_type == 'vocab' else 'add_grammar' %}
-            {% set add_url = url_for(add_route, category=current_category) if current_category and current_category != '__uncategorized__' else url_for(add_route) %}
+            {% set add_url = url_for(add_route, category=current_category) if current_category and current_category !=
+            '__uncategorized__' else url_for(add_route) %}
             <a href="{{ add_url }}" class="btn btn-success">＋ 新增</a>
 
-            {# 類別切換按鈕 (如果當前有選中分類，保留類型切換功能) #}
-            {% if current_category and current_category != '__uncategorized__' %}
             <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
                 class="btn btn-{{ 'primary' if data_type == 'vocab' else 'outline-primary' }}">
+                {% if current_category == '__uncategorized__' %}
+                單字 (無分類)
+                {% elif current_category %}
                 單字 ({{ current_category }})
+                {% else %}
+                所有單字
+                {% endif %}
             </a>
             <a href="{{ url_for('list_page', data_type='grammar', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
                 class="btn btn-{{ 'primary' if data_type == 'grammar' else 'outline-primary' }}">
+                {% if current_category == '__uncategorized__' %}
+                文法 (無分類)
+                {% elif current_category %}
                 文法 ({{ current_category }})
+                {% else %}
+                所有文法
+                {% endif %}
             </a>
-            {% endif %}
+
         </div>
 
 
@@ -200,7 +224,7 @@
                             {% endif %}
                             <td style="max-width: 250px;">{{ item.explanation }}</td>
 
-                            {# 🌟 例句欄位：新增點擊翻譯和防止語音按鈕傳播 #}
+                            {# 例句欄位：新增點擊翻譯和防止語音按鈕傳播 #}
                             <td class="example-cell"
                                 onclick="openGoogleTranslate('{{ item.example_sentence | escape }}')"
                                 style="cursor: pointer;">
@@ -240,7 +264,7 @@
                 <div class="alert alert-warning">
                     {% if search_term %}
                     找不到與 **{{ search_term }}** 相關的{{ '單字' if data_type == 'vocab' else '文法' }}。
-                    {# 🚨 關鍵修改：新增無分類警告 #}
+                    {# 增無分類警告 #}
                     {% elif current_category == '__uncategorized__' %}
                     找不到任何 **無分類** 的{{ '單字' if data_type == 'vocab' else '文法' }}項目。
                     {% elif current_category %}
@@ -252,7 +276,7 @@
                 {% endif %}
 
                 {# ---------------------------------------------------------------- #}
-                {# 🎯 完整的分頁導航區塊 #}
+                {# 完整的分頁導航區塊 #}
                 {# ---------------------------------------------------------------- #}
                 {% if pagination %}
                 <nav aria-label="Page navigation example" class="mt-4">
@@ -319,10 +343,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // 🌟 修正後的翻譯功能：新增取消語音 (符合您的要求)
         function openGoogleTranslate(text) {
             if (text && text.trim().length > 0) {
-                // 執行您要求的動作：取消所有語音
                 window.speechSynthesis.cancel();
 
                 const encodedText = encodeURIComponent(text.trim());
@@ -332,7 +354,7 @@
             }
         }
 
-        // 發音功能 (保持不變)
+        // 發音功能
         function speakText(text) {
             if ('speechSynthesis' in window) {
                 let textToSpeak = text.trim();
@@ -354,13 +376,13 @@
             }
         }
 
-        // 頁面跳轉功能 (保持不變)
+        // 頁面跳轉功能
         function jumpToPage() {
             const jumpInput = document.getElementById('jump-to-input');
             const pageNum = parseInt(jumpInput.value);
             const totalPages = parseInt('{{ total_pages }}');
             const currentPage = parseInt('{{ current_page }}');
-            
+
             // 由於 Jinja 模板已在伺服器端生成了完整的 URL，這裡我們直接替換 page 參數
             // 為了簡化，我們將使用一個包含所有當前參數的基礎 URL 模板
             const baseUrl = '{{ url_for("list_page", data_type=data_type, page="PLACEHOLDER", category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}';
@@ -376,7 +398,7 @@
             window.location.href = baseUrl.replace('PLACEHOLDER', pageNum);
         }
 
-        // 刪除按鈕功能 (保持不變)
+        // 刪除按鈕功能
         document.addEventListener('DOMContentLoaded', function () {
             const deleteButtons = document.querySelectorAll('.delete-btn');
             deleteButtons.forEach(button => {
@@ -397,11 +419,11 @@
                                 // 最簡單的處理方式是假設成功後直接重新載入頁面
                                 if (response.ok || response.redirected) {
                                     // 使用 window.location.href 而不是 reload，確保正確處理閃現訊息
-                                    window.location.href = '{{ url_for("list_page", data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}'; 
+                                    window.location.href = '{{ url_for("list_page", data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}';
                                 } else {
                                     throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
                                 }
-                                
+
                             })
                             .catch(error => {
                                 console.error('Error:', error);

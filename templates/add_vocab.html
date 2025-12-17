@@ -19,6 +19,36 @@
             color: black;
             border-color: #0dcaf0;
         }
+
+        /* 輸入提示字樣式 */
+        /* Chrome, Safari, Edge */
+        input::-webkit-input-placeholder,
+        textarea::-webkit-input-placeholder {
+            color: rgba(68, 68, 68, 0.3) !important;
+            -webkit-text-fill-color: rgba(68, 68, 68, 0.3) !important;
+            /* 某些 WebKit 版本需要這個 */
+        }
+
+        /* Firefox */
+        input::-moz-placeholder,
+        textarea::-moz-placeholder {
+            color: rgba(68, 68, 68, 0.3) !important;
+            opacity: 1 !important;
+            /* Firefox 預設會降低透明度，需強制設為 1 */
+        }
+
+        /* Internet Explorer / Edge 舊版 */
+        input:-ms-input-placeholder,
+        textarea:-ms-input-placeholder {
+            color: rgba(68, 68, 68, 0.3) !important;
+        }
+
+        /* 標準語法 */
+        input::placeholder,
+        textarea::placeholder {
+            color: rgba(68, 68, 68, 0.3) !important;
+            opacity: 1 !important;
+        }
     </style>
 </head>
 
@@ -66,12 +96,13 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="explanation" class="form-label fw-bold">解釋/中文意思</label>
-                            <textarea class="form-control" id="explanation" name="explanation" rows="2"></textarea>
+                            <textarea class="form-control" id="explanation" name="explanation" rows="2"
+                                placeholder="例如: 吃"></textarea>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="example_sentence" class="form-label fw-bold">例句</label>
-                            <textarea class="form-control" id="example_sentence" name="example_sentence"
-                                rows="2"></textarea>
+                            <textarea class="form-control" id="example_sentence" name="example_sentence" rows="2"
+                                placeholder="例如: 飯を食べる。"></textarea>
                         </div>
                     </div>
 
@@ -90,7 +121,7 @@
                     <div class="mb-3">
                         <label for="new_categories" class="form-label fw-bold">新增分類 (以逗號分隔)</label>
                         <input type="text" class="form-control" id="new_categories" name="new_categories"
-                            placeholder="例如: N5, 動詞, 食物">
+                            placeholder="例如: N1, 動詞, 食物">
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100 mt-3">儲存單字</button>
@@ -100,6 +131,63 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const forms = document.querySelectorAll('form');
+
+            forms.forEach(form => {
+                form.addEventListener('submit', function (e) {
+                    const inputs = form.querySelectorAll('input[type="text"], textarea');
+                    let isValid = true;
+                    let errorMessage = "";
+
+                    // SQL 注入與特殊字元過濾
+                    let sqlRegex = /delete|drop|insert|select|update|union|truncate|exec|--|['";#\*.\/\\]/i;
+
+                    for (let input of inputs) {
+                        const rawValue = input.value;
+                        const trimmedValue = rawValue.trim();
+
+                        // 1. 嚴格檢查必填欄位 (排除全空白)
+                        if (input.hasAttribute('required') && trimmedValue.length === 0) {
+                            isValid = false;
+                            errorMessage = `「${input.previousElementSibling.innerText}」不能為空或只有空格！`;
+                            input.focus();
+                            break;
+                        }
+
+                        // 2. 針對「新增分類 (new_categories)」的深度檢查
+                        if (input.id === "new_categories" && rawValue.length > 0) {
+                            // 如果輸入了東西，但 trim 後是空的 (代表全是空格)
+                            if (trimmedValue.length === 0) {
+                                isValid = false;
+                                errorMessage = "新增分類不能只輸入空格！";
+                                input.focus();
+                                break;
+                            }
+                        }
+
+                        // 3. 通用 SQL 安全檢查
+                        if (trimmedValue.length > 0 && sqlRegex.test(trimmedValue)) {
+                            isValid = false;
+                            errorMessage = "偵測到非法字元或 SQL 關鍵字，請修改輸入內容。";
+                            input.focus();
+                            break;
+                        }
+
+                        // 【關鍵步驟】將清理過的文字回填
+                        // 這樣如果使用者輸入 "  N1  ", 送出時會變成 "N1"
+                        input.value = trimmedValue;
+                    }
+
+                    if (!isValid) {
+                        e.preventDefault(); // 這裡會徹底攔截，不讓表單送到後端
+                        alert(errorMessage);
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 
 </html>
