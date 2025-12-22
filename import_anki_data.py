@@ -222,11 +222,22 @@ def import_anki_data(filepath):
                 if not term_raw or not explanation_raw:
                     continue 
                 
-                # --- 數據清理與正規化 ---
+                # --- 數據清理與正規化 (修改區) ---
                 
-                # 🚨 修正點：移除 term_raw 中的 [...] 內容 (Furigana)
-                # 例如: "脅[おびや]かす" -> "脅かす"
-                term = re.sub(r'\[.+?\]', '', term_raw).strip() 
+                # 1. 先取得純淨的單字 (移除原始可能存在的 [...])
+                term_cleaned = re.sub(r'\[.+?\]', '', term_raw).strip() 
+                
+                # 2. 取得讀音 (New-N5.txt 中讀音在 index 4)
+                reading_raw = row[4].strip()
+                
+                # 3. 智能組裝 Term + [Reading]
+                # 過濾掉：讀音為空、讀音與單字相同(純假名)、讀音是詞源說明(以左括號開頭)
+                if reading_raw and reading_raw != term_cleaned and not reading_raw.startswith('('):
+                    term = f"{term_cleaned}[{reading_raw}]"
+                else:
+                    term = term_cleaned
+                
+                # ----------------------------------
                 
                 pos_list_cleaned = map_pos_codes(pos_raw) 
                 

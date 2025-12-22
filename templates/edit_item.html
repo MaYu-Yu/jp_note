@@ -76,9 +76,10 @@
                     <div class="mb-3">
                         <label for="term" class="form-label">
                             日語 ({{ '單字' if data_type == 'vocab' else '文法' }})
-                            {% if data_type == 'grammar' %}
-                            <span class="text-danger fw-bold">(請用 [ ] 標註核心文法)</span>
-                            {% endif %}
+                            <span class="text-danger fw-bold">
+                                ({{ '請用 [ ] 標註讀音，播放語音時只會撥放讀音，例如: ご飯[ごはん]' if data_type == 'vocab' else '請用 [ ]
+                                標註核心文法，播放語音時只會撥放核心語法，例如: V-辭書形 + [ことができる]' }})
+                            </span>
                         </label>
                         <input type="text" class="form-control" id="term" name="term"
                             value="{{ item.term or '' if item else '' }}" required
