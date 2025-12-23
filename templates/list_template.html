@@ -133,7 +133,7 @@
             {% set add_route = 'add_vocab' if data_type == 'vocab' else 'add_grammar' %}
             {% set add_url = url_for(add_route, category=current_category) if current_category and current_category !=
             '__uncategorized__' else url_for(add_route) %}
-            <a href="{{ add_url }}" class="btn btn-success">＋ 新增</a>
+            <a href="{{ add_url }}" class="btn btn-success" target="_blank">＋ 新增</a>
 
             <a href="{{ url_for('list_page', data_type='vocab', page=1, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order) }}"
                 class="btn btn-{{ 'primary' if data_type == 'vocab' else 'outline-primary' }}">
