@@ -137,17 +137,12 @@ def init_db():
     conn.close()
     
 # ----------------- SQL注入內容正規化 -----------------
+# app.py 內部的函式修正
 def backend_normalize(text):
     if not text:
         return ""
-    # 使用 NFKC 正規化：將全形英數、空格自動轉為半形
-    # 這會把 「ＡＢＣ １２３」 變成 "ABC 123"
+    # 1. 保留 NFKC：將全形「＋」「／」自動轉為半形，對檢索與顯示非常有幫助
     text = unicodedata.normalize('NFKC', text)
-    
-    # 移除危險字元
-    for char in ["'", '"', ";", "\\"]:
-        text = text.replace(char, "")
-    
     return text.strip()
 # ----------------- 日文假名轉換工具函數 (使用 Unicode 偏移) -----------------
 def _convert_kana(text, target_type='hiragana'):
@@ -545,7 +540,7 @@ def api_add_category():
     finally:
         conn.close()
         
-@app.route('/api/edit_category/<old_name>', methods=['POST'])
+@app.route('/api/edit_category/<path:old_name>', methods=['POST'])
 def api_edit_category(old_name):
     """API 路由：編輯分類。"""
     conn = get_db_connection()
@@ -588,7 +583,7 @@ def api_edit_category(old_name):
     finally:
         conn.close()
         
-@app.route('/api/delete_category/<category_name>', methods=['POST'])
+@app.route('/api/delete_category/<path:category_name>', methods=['POST'])
 def api_delete_category(category_name):
     """API 路由：刪除分類。"""
     conn = get_db_connection()

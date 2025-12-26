@@ -135,6 +135,17 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const forms = document.querySelectorAll('form');
+            const sqlRegex = /\b(delete|drop|insert|select|update|union|truncate|exec)\b/i;
+
+            /**
+             * 統一驗證函式
+             */
+            function check_input(text, isCategory = false) {
+                const trimmed = text ? text.trim() : "";
+                if (isCategory && trimmed.includes(',')) return "分類名稱不能包含逗號「,」";
+                if (trimmed.length > 0 && sqlRegex.test(trimmed)) return "偵測到非法系統指令，請修改輸入內容。";
+                return null;
+            }
 
             forms.forEach(form => {
                 form.addEventListener('submit', function (e) {
@@ -142,47 +153,34 @@
                     let isValid = true;
                     let errorMessage = "";
 
-                    // SQL 注入與特殊字元過濾
-                    let sqlRegex = /delete|drop|insert|select|update|union|truncate|exec|--|['";#\*.\/\\]/i;
-
                     for (let input of inputs) {
                         const rawValue = input.value;
                         const trimmedValue = rawValue.trim();
 
-                        // 1. 嚴格檢查必填欄位 (排除全空白)
+                        // 1. 必填檢查
                         if (input.hasAttribute('required') && trimmedValue.length === 0) {
                             isValid = false;
-                            errorMessage = `「${input.previousElementSibling.innerText}」不能為空或只有空格！`;
+                            const labelText = input.previousElementSibling ? input.previousElementSibling.innerText : "欄位";
+                            errorMessage = `「${labelText}」不能為空！`;
                             input.focus();
                             break;
                         }
 
-                        // 2. 針對「新增分類 (new_categories)」的深度檢查
-                        if (input.id === "new_categories" && rawValue.length > 0) {
-                            // 如果輸入了東西，但 trim 後是空的 (代表全是空格)
-                            if (trimmedValue.length === 0) {
-                                isValid = false;
-                                errorMessage = "新增分類不能只輸入空格！";
-                                input.focus();
-                                break;
-                            }
-                        }
-
-                        // 3. 通用 SQL 安全檢查
-                        if (trimmedValue.length > 0 && sqlRegex.test(trimmedValue)) {
+                        // 2. 使用 check_input 驗證
+                        const error = check_input(trimmedValue, input.id === "new_categories");
+                        if (error && (input.hasAttribute('required') || rawValue.length > 0)) {
                             isValid = false;
-                            errorMessage = "偵測到非法字元或 SQL 關鍵字，請修改輸入內容。";
+                            errorMessage = error;
                             input.focus();
                             break;
                         }
 
-                        // 【關鍵步驟】將清理過的文字回填
-                        // 這樣如果使用者輸入 "  N1  ", 送出時會變成 "N1"
+                        // 回填清理後的文字
                         input.value = trimmedValue;
                     }
 
                     if (!isValid) {
-                        e.preventDefault(); // 這裡會徹底攔截，不讓表單送到後端
+                        e.preventDefault();
                         alert(errorMessage);
                     }
                 });

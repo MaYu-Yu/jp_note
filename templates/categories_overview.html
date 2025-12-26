@@ -115,211 +115,102 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // 綁定「新增分類」按鈕事件
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
         const addCategoryBtn = document.getElementById('add-category-btn');
-        const sqlRegex = /delete|drop|insert|select|update|union|truncate|exec|--|['";#\*.\/\\]/i;
+        const sqlRegex = /\b(delete|drop|insert|select|update|union|truncate|exec)\b/i;
+
+        // 統一驗證函式
+        function check_input(text, isCategory = false) {
+            const trimmed = text ? text.trim() : "";
+            if (trimmed.length === 0) return "內容不能為空！";
+            if (isCategory && trimmed.includes(',')) return "名稱不能包含逗號「,」";
+            if (sqlRegex.test(trimmed)) return "偵測到非法系統指令。";
+            return null;
+        }
+
+        // 新增分類
         addCategoryBtn.addEventListener('click', function () {
             const categoryName = prompt("請輸入新分類名稱：");
-
-            if (categoryName === null) return; // 使用者按下取消
-
+            if (categoryName === null) return;
             let trimmedName = categoryName.trim();
+            const error = check_input(trimmedName, true);
+            if (error) { alert(error); return; }
 
-            if (trimmedName.length === 0) {
-                alert("分類名稱不能只包含空格！");
-                return;
-            }
-            if (sqlRegex.test(trimmedName)) {
-                alert("偵測到非法字元或 SQL 關鍵字，請修改輸入內容。");
-                return;
-            }
-            if (trimmedName === "") {
-                alert("分類名稱不能為空！");
-                return;
-            }
-            if (trimmedName.includes(',')) {
-                alert("名稱不能包含逗號「,」");
-                return;
-            }
-            // --- 驗證結束 ---
-
-            // 透過 Fetch API 送出
             fetch("/api/add_category", {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: trimmedName }),
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        window.location.reload(); // 成功後重整頁面
-                    } else {
-                        alert("錯誤: " + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert("連線伺服器時發生錯誤。");
-                });
+            .then(res => res.json())
+            .then(data => { if (data.success) window.location.reload(); else alert(data.message); });
         });
-        document.addEventListener('DOMContentLoaded', function () {
-            // 編輯按鈕邏輯
-            const editButtons = document.querySelectorAll('.edit-btn-overlay');
-            editButtons.forEach(button => {
-                button.addEventListener('click', function (event) {
-                    event.stopPropagation();
-                    event.preventDefault();
 
-                    const oldName = this.getAttribute('data-category');
+        // 修改分類 (解決失效關鍵：encodeURIComponent)
+        const editButtons = document.querySelectorAll('.edit-btn-overlay');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function (event) {
+                event.stopPropagation();
+                event.preventDefault();
+                const oldName = this.getAttribute('data-category');
+                const newName = prompt(`編輯分類「${oldName}」。請輸入新的名稱：`, oldName);
 
-                    // 彈出輸入框讓使用者輸入新的分類名稱
-                    const newName = prompt(`編輯分類「${oldName}」。請輸入新的名稱：`, oldName);
+                if (newName === null || newName.trim() === oldName) return;
+                let trimmedName = newName.trim();
+                const error = check_input(trimmedName, true);
+                if (error) { alert(error); return; }
 
-                    if (newName === null) return;
-
-                    let trimmedName = newName.trim();
-                    
-                    if (trimmedName.length === 0) {
-                        alert("分類名稱不能只包含空格！");
-                        return;
-                    }
-                    if (sqlRegex.test(trimmedName)) {
-                        alert("偵測到非法字元或 SQL 關鍵字，請修改輸入內容。");
-                        return;
-                    }
-                    if (trimmedName === "") {
-                        alert("分類名稱不能為空！");
-                        return;
-                    }
-                    if (trimmedName.includes(',')) {
-                        alert("名稱不能包含逗號「,」");
-                        return;
-                    }
-                    if (newName === null || newName.trim() === '') {
-                        alert('編輯取消或新名稱為空。');
-                        return;
-                    }
-                    // 呼叫後端 API 進行更新
-                    fetch(`/api/edit_category/${encodeURIComponent(oldName)}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ new_name: newName.trim() })
-                    })
-                        .then(response => {
-                            if (!response.ok) {
-                                // 嘗試從響應中讀取詳細錯誤信息
-                                return response.json().then(err => { throw new Error(err.message || `HTTP 錯誤! 狀態: ${response.status}`); });
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                window.location.reload(); // 成功後重新載入頁面
-                            } else {
-                                alert('編輯失敗: ' + (data.message || '未知錯誤'));
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('編輯過程中發生錯誤。請檢查伺服器連線。\n詳細錯誤: ' + error.message);
-                        });
-                });
+                // 使用 encodeURIComponent 確保日文符號能在網址傳輸
+                fetch(`/api/edit_category/${encodeURIComponent(oldName)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ new_name: trimmedName })
+                })
+                .then(res => res.json())
+                .then(data => { if (data.success) window.location.reload(); else alert(data.message); });
             });
         });
 
+        // 刪除分類 (解決失效關鍵：encodeURIComponent)
         const deleteButtons = document.querySelectorAll('.delete-btn-overlay');
         deleteButtons.forEach(button => {
             button.addEventListener('click', function (event) {
                 event.stopPropagation();
                 event.preventDefault();
-
                 const categoryName = this.getAttribute('data-category');
 
-                if (confirm(`確定要從所有單字/文法中移除「${categoryName}」這個分類嗎？此操作不可逆。`)) {
-
+                if (confirm(`確定要移除「${categoryName}」嗎？`)) {
+                    // 使用 encodeURIComponent
                     fetch(`/api/delete_category/${encodeURIComponent(categoryName)}`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                     })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            if (data.success) {
-                                window.location.reload();
-                            } else {
-                                alert('刪除失敗: ' + (data.message || '未知錯誤'));
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            alert('刪除過程中發生錯誤。請檢查伺服器連線。');
-                        });
+                    .then(res => res.json())
+                    .then(data => { if (data.success) window.location.reload(); else alert(data.message); });
                 }
             });
         });
-        document.addEventListener('DOMContentLoaded', function () {
-            const forms = document.querySelectorAll('form');
 
-            forms.forEach(form => {
-                form.addEventListener('submit', function (e) {
-                    const inputs = form.querySelectorAll('input[type="text"], textarea');
-                    let isValid = true;
-                    let errorMessage = "";
-
-                    // SQL 注入與特殊字元過濾
-                    for (let input of inputs) {
-                        const rawValue = input.value;
-                        const trimmedValue = rawValue.trim();
-
-                        // 1. 嚴格檢查必填欄位 (排除全空白)
-                        if (input.hasAttribute('required') && trimmedValue.length === 0) {
-                            isValid = false;
-                            errorMessage = `「${input.previousElementSibling.innerText}」不能為空或只有空格！`;
-                            input.focus();
-                            break;
-                        }
-
-                        // 2. 針對「新增分類 (new_categories)」的深度檢查
-                        if (input.id === "new_categories" && rawValue.length > 0) {
-                            // 如果輸入了東西，但 trim 後是空的 (代表全是空格)
-                            if (trimmedValue.length === 0) {
-                                isValid = false;
-                                errorMessage = "新增分類不能只輸入空格！";
-                                input.focus();
-                                break;
-                            }
-                        }
-
-                        // 3. 通用 SQL 安全檢查
-                        if (trimmedValue.length > 0 && sqlRegex.test(trimmedValue)) {
-                            isValid = false;
-                            errorMessage = "偵測到非法字元或 SQL 關鍵字，請修改輸入內容。";
-                            input.focus();
-                            break;
-                        }
-
-                        // 【關鍵步驟】將清理過的文字回填
-                        // 這樣如果使用者輸入 "  N1  ", 送出時會變成 "N1"
-                        input.value = trimmedValue;
+        // 通用表單驗證
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            form.addEventListener('submit', function (e) {
+                const inputs = form.querySelectorAll('input[type="text"], textarea');
+                for (let input of inputs) {
+                    const trimmedValue = input.value.trim();
+                    const error = check_input(trimmedValue, input.id === "new_categories");
+                    if (error && (input.hasAttribute('required') || input.value.length > 0)) {
+                        e.preventDefault();
+                        alert(error);
+                        input.focus();
+                        return;
                     }
-
-                    if (!isValid) {
-                        e.preventDefault(); // 這裡會徹底攔截，不讓表單送到後端
-                        alert(errorMessage);
-                    }
-                });
+                    input.value = trimmedValue;
+                }
             });
         });
-    </script>
+    });
+</script>
 </body>
 
 </html>

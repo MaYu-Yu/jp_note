@@ -78,12 +78,49 @@
                             日語 ({{ '單字' if data_type == 'vocab' else '文法' }})
                             <span class="text-danger fw-bold">
                                 ({{ '請用 [ ] 標註讀音，播放語音時只會撥放讀音，例如: ご飯[ごはん]' if data_type == 'vocab' else '請用 [ ]
-                                標註核心文法，播放語音時只會撥放核心語法，例如: V-辭書形 + [ことができる]' }})
+                                標註核心文法，播放語音時只會撥放核心語法，例如: V-辭書形 + [ことができる]、使用|換行' }})
                             </span>
                         </label>
+
+                        {% if data_type == 'grammar' %}
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="term" name="term"
+                                value="{{ item.term or '' if item else '' }}" required
+                                placeholder="例如: V-辭書形 + [ことができる]">
+                            <button class="btn btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">快捷鍵</button>
+                            <ul class="dropdown-menu" id="grammar-shortcuts">
+                                <li><a class="dropdown-item" href="#" data-pos="V">V</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-ます形">V-ます形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-辭書形">V-辭書形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-て形">V-て形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-た形">V-た形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-ない形">V-ない形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-普通形">V-普通形</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-可能形">V-可能形 (できる)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-受身形">V-受身形 (られる)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-使役形">V-使役形 (させる)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-意向形">V-意向形 (よう)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="V-條件形">V-條健形 (ば)</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="#" data-pos="N">N (名詞)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="い形">い形 (い形容詞)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="ナ形">ナ形 (ナ形容詞)</a></li>
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li><a class="dropdown-item" href="#" data-pos="[]">[] (標註核心文法)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos="|">| (換行)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos=" + ">+ (加號)</a></li>
+                                <li><a class="dropdown-item" href="#" data-pos=" / ">/ (斜線)</a></li>
+                            </ul>
+                        </div>
+                        {% else %}
                         <input type="text" class="form-control" id="term" name="term"
-                            value="{{ item.term or '' if item else '' }}" required
-                            placeholder="例如: {{ '食べる' if data_type == 'vocab' else 'V-辭書形 + [ことができる]' }}">
+                            value="{{ item.term or '' if item else '' }}" required placeholder="例如: 食べる">
+                        {% endif %}
                     </div>
 
                     {% if data_type == 'vocab' %}
@@ -149,8 +186,48 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 處理快捷鍵插入功能
+        const shortcutsContainer = document.getElementById('grammar-shortcuts');
+        if (shortcutsContainer) {
+            shortcutsContainer.addEventListener('click', function (e) {
+                if (e.target.classList.contains('dropdown-item')) {
+                    e.preventDefault();
+                    const termInput = document.getElementById('term');
+                    const insertValue = e.target.getAttribute('data-pos');
+
+                    // 獲取當前游標起始與結束位置
+                    const startPos = termInput.selectionStart;
+                    const endPos = termInput.selectionEnd;
+                    const currentValue = termInput.value;
+
+                    // 在游標位置插入字串
+                    const newValue =
+                        currentValue.substring(0, startPos) +
+                        insertValue +
+                        currentValue.substring(endPos, currentValue.length);
+
+                    termInput.value = newValue;
+
+                    // 移動游標並重新聚焦
+                    const newCursorPos = startPos + insertValue.length;
+                    termInput.focus();
+                    termInput.setSelectionRange(newCursorPos, newCursorPos);
+                }
+            });
+        }
         document.addEventListener('DOMContentLoaded', function () {
             const forms = document.querySelectorAll('form');
+            const sqlRegex = /\b(delete|drop|insert|select|update|union|truncate|exec)\b/i;
+
+            /**
+             * 統一驗證函式
+             */
+            function check_input(text, isCategory = false) {
+                const trimmed = text ? text.trim() : "";
+                if (isCategory && trimmed.includes(',')) return "分類名稱不能包含逗號「,」";
+                if (trimmed.length > 0 && sqlRegex.test(trimmed)) return "偵測到非法系統指令，請修改輸入內容。";
+                return null;
+            }
 
             forms.forEach(form => {
                 form.addEventListener('submit', function (e) {
@@ -158,47 +235,34 @@
                     let isValid = true;
                     let errorMessage = "";
 
-                    // SQL 注入與特殊字元過濾
-                    let sqlRegex = /delete|drop|insert|select|update|union|truncate|exec|--|['";#\*.\/\\]/i;
-
                     for (let input of inputs) {
                         const rawValue = input.value;
                         const trimmedValue = rawValue.trim();
 
-                        // 1. 嚴格檢查必填欄位 (排除全空白)
+                        // 1. 必填檢查
                         if (input.hasAttribute('required') && trimmedValue.length === 0) {
                             isValid = false;
-                            errorMessage = `「${input.previousElementSibling.innerText}」不能為空或只有空格！`;
+                            const labelText = input.previousElementSibling ? input.previousElementSibling.innerText : "欄位";
+                            errorMessage = `「${labelText}」不能為空！`;
                             input.focus();
                             break;
                         }
 
-                        // 2. 針對「新增分類 (new_categories)」的深度檢查
-                        if (input.id === "new_categories" && rawValue.length > 0) {
-                            // 如果輸入了東西，但 trim 後是空的 (代表全是空格)
-                            if (trimmedValue.length === 0) {
-                                isValid = false;
-                                errorMessage = "新增分類不能只輸入空格！";
-                                input.focus();
-                                break;
-                            }
-                        }
-
-                        // 3. 通用 SQL 安全檢查
-                        if (trimmedValue.length > 0 && sqlRegex.test(trimmedValue)) {
+                        // 2. 使用 check_input 驗證
+                        const error = check_input(trimmedValue, input.id === "new_categories");
+                        if (error && (input.hasAttribute('required') || rawValue.length > 0)) {
                             isValid = false;
-                            errorMessage = "偵測到非法字元或 SQL 關鍵字，請修改輸入內容。";
+                            errorMessage = error;
                             input.focus();
                             break;
                         }
 
-                        // 【關鍵步驟】將清理過的文字回填
-                        // 這樣如果使用者輸入 "  N1  ", 送出時會變成 "N1"
+                        // 回填清理後的文字
                         input.value = trimmedValue;
                     }
 
                     if (!isValid) {
-                        e.preventDefault(); // 這裡會徹底攔截，不讓表單送到後端
+                        e.preventDefault();
                         alert(errorMessage);
                     }
                 });
