@@ -319,6 +319,18 @@
         // =================================================================
 
         /**
+         * 輔助函數：移除文字中包含在半形 () 或全形 （） 括弧內的內容。
+         */
+        function filterParentheses(text) {
+            if (!text) return '';
+            // 正規表達式說明：
+            // \((.*?)\) 匹配半形括弧及其內容
+            // （(.*?)） 匹配全形括弧及其內容
+            // /g 表示全域匹配（替換所有出現的地方）
+            return text.replace(/\((.*?)\)|（(.*?)）/g, '').trim();
+        }
+
+        /**
          * 停止自動播放循環和語音。
          * @param {boolean} updateButton - 是否更新按鈕文字和啟用間隔選擇器。
          */
@@ -350,7 +362,8 @@
                 return;
             }
 
-            let textToSpeak = text.trim();
+            // 在此進行括弧內容過濾，確保所有經由 speakText 播放的語音都符合規則
+            let textToSpeak = filterParentheses(text.trim());
 
             // 處理日語文本，只讀取主要單字/文法，忽略 + 號後的資訊
             if (lang === 'ja-JP') {
@@ -396,12 +409,12 @@
 
             // 1. 播放日語 Term
             speakText(currentCardData.term, 'ja-JP', () => {
-                // 2. 播放中文解釋
-                const explanationText = explanationElement.textContent;
-                speakText(explanationText, 'zh-TW', () => {
+                // 2. 播放中文解釋 (speakText 內部已包含 filterParentheses)
+                const rawExplanation = currentCardData.explanation || "";
+                speakText(rawExplanation, 'zh-TW', () => {
                     // 3. 播放日語例句
-                    const exampleText = exampleElement.textContent;
-                    speakText(exampleText, 'ja-JP', () => {
+                    const rawExample = currentCardData.example_sentence || "";
+                    speakText(rawExample, 'ja-JP', () => {
                         // 4. 全部完成
                         callback();
                     });
