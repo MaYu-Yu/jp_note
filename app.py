@@ -664,7 +664,9 @@ def add_item(data_type):
             
             conn.commit()
             flash(f'{data_type}「{term}」已成功新增！', 'success')
-            return redirect(url_for(f'add_{data_type}'))
+            return redirect(url_for('list_page', 
+                                data_type=data_type,
+                                category=category_string))
         except sqlite3.Error as e:
             conn.rollback()
             flash(f'新增失敗: {e}', 'danger')
@@ -724,7 +726,9 @@ def edit_item(data_type, item_id):
             
             conn.commit()
             flash(f'{data_type_display}「{term}」已成功更新！', 'success')
-            return redirect(url_for('list_page', data_type=data_type))
+            return redirect(url_for('list_page', 
+                                data_type=data_type,
+                                category=category_string))
         except sqlite3.Error as e:
             conn.rollback()
             flash(f'更新失敗: {e}', 'danger')
@@ -760,6 +764,7 @@ def delete_item(data_type, item_id):
 
     table_name = get_table_name(data_type)
     data_type_display = '單字' if data_type == 'vocab' else '文法'
+    
     conn = get_db_connection()
     
     try:
@@ -769,7 +774,7 @@ def delete_item(data_type, item_id):
         
         # 2. 刪除 item_pos_table 中的連結 (僅 vocab)
         if data_type == 'vocab':
-            cursor.execute('DELETE FROM item_pos_table WHERE item_id = ?', (item_id,)) # NEW
+            cursor.execute('DELETE FROM item_pos_table WHERE item_id = ?', (item_id,))
         
         # 3. 刪除主表中的項目
         cursor.execute(f'DELETE FROM {table_name} WHERE id = ?', (item_id,))
