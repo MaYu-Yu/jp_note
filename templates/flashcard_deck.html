@@ -7,178 +7,28 @@
     <title>單字卡學習</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body {
-            background-color: #f8f9fa;
-        }
-
-        .flashcard-container {
-            min-height: 80vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding-top: 5vh;
-        }
-
-        .flashcard {
-            width: 95%;
-            max-width: 900px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            border-radius: 0.5rem;
-            min-height: 450px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .card-header-main {
-            padding: 1.5rem 2rem;
-            background-color: #d6eaff;
-            border-bottom: 2px solid #007bff;
-            border-radius: 0.5rem 0.5rem 0 0;
-            font-size: 1.2rem;
-            color: #007bff;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .card-body {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 2rem;
-            text-align: center;
-        }
-
-        /* 第一行: 日語、詞性、語音 */
-        .term-text {
-            font-size: 3rem;
-            font-weight: bold;
-            color: #007bff;
-            margin: 0;
-            line-height: 1.3;
-            word-break: break-word;
-            text-align: left;
-        }
-
-        .term-line {
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 1.5rem;
-            cursor: pointer;
-            min-height: 100px;
-        }
-
-        .explanation-line,
-        .example-line {
-            text-align: left;
-        }
-
-        /* 調整徽章和按鈕在 Term 旁邊的位置 */
-        .pos-badge,
-        .tts-button {
-            margin-left: 10px;
-        }
-
-        .pos-badge {
-            font-size: 1.2rem;
-        }
-
-        .tts-button {
-            cursor: pointer;
-            color: #28a745;
-            font-size: 1.5em;
-            vertical-align: top;
-            transition: color 0.2s;
-        }
-
-        .tts-button:hover {
-            color: #1e7e34;
-        }
-
-        .explanation-line {
-            margin-bottom: 1.5rem;
-        }
-
-        .content-label {
-            font-weight: bold;
-            color: #6c757d;
-            margin-bottom: 0.25rem;
-            font-size: 1.1rem;
-            text-align: left;
-        }
-
-        .content-text {
-            margin-bottom: 1rem;
-            font-size: 1.1rem;
-            line-height: 1.6;
-            text-align: left;
-        }
-
-        .explanation-style {
-            color: #343a40;
-            padding: 10px;
-            background-color: #e9f5ff;
-            border-left: 4px solid #007bff;
-            border-radius: 4px;
-        }
-
-        .example-style {
-            color: #343a40;
-            padding: 10px;
-            background-color: #f7f7f7;
-            border-left: 4px solid #28a745;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        /* 卡片內部導航按鈕佈局 */
-        .control-row-nav-internal {
-            display: flex;
-            width: 100%;
-            justify-content: space-between;
-            gap: 15px;
-            padding-top: 1rem;
-            border-top: 1px solid #ddd;
-            margin-top: auto;
-        }
-
-        .control-row-nav-internal .btn-lg {
-            flex-grow: 1;
-            max-width: 48%;
-        }
-
-        /* 外部控制項：佈局調整：卡片下方的按鈕群組 */
-        .control-row-main {
-            width: 95%;
-            max-width: 900px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-        }
-
-        /* 重複使用原有的居中群組樣式 */
-        .control-row-center {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .autoplay-controls .form-select {
-            width: 100px;
-        }
-
-        /* 讓 collapse 內容不會被 flex 容器壓縮 */
-        .collapse:not(.show) {
-            flex-shrink: 0;
-        }
+        body { background-color: #f8f9fa; }
+        .flashcard-container { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding-top: 5vh; }
+        .flashcard { width: 95%; max-width: 900px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; min-height: 450px; display: flex; flex-direction: column; }
+        .card-header-main { padding: 1.5rem 2rem; background-color: #d6eaff; border-bottom: 2px solid #007bff; border-radius: 0.5rem 0.5rem 0 0; font-size: 1.2rem; color: #007bff; font-weight: bold; cursor: pointer; }
+        .card-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 2rem; text-align: center; }
+        .term-text { font-size: 3rem; font-weight: bold; color: #007bff; margin: 0; line-height: 1.3; word-break: break-word; text-align: left; }
+        .term-line { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 1.5rem; border-bottom: 1px solid #ddd; padding-bottom: 1.5rem; cursor: pointer; min-height: 100px; }
+        .explanation-line, .example-line { text-align: left; }
+        .pos-badge, .tts-button { margin-left: 10px; }
+        .pos-badge { font-size: 1.2rem; }
+        .tts-button { cursor: pointer; color: #28a745; font-size: 1.5em; vertical-align: top; transition: color 0.2s; }
+        .tts-button:hover { color: #1e7e34; }
+        .explanation-line { margin-bottom: 1.5rem; }
+        .content-label { font-weight: bold; color: #6c757d; margin-bottom: 0.25rem; font-size: 1.1rem; text-align: left; }
+        .content-text { margin-bottom: 1rem; font-size: 1.1rem; line-height: 1.6; text-align: left; }
+        .explanation-style { color: #343a40; padding: 10px; background-color: #e9f5ff; border-left: 4px solid #007bff; border-radius: 4px; }
+        .example-style { color: #343a40; padding: 10px; background-color: #f7f7f7; border-left: 4px solid #28a745; border-radius: 4px; cursor: pointer; }
+        .control-row-nav-internal { display: flex; width: 100%; justify-content: space-between; gap: 15px; padding-top: 1rem; border-top: 1px solid #ddd; margin-top: auto; }
+        .control-row-nav-internal .btn-lg { flex-grow: 1; max-width: 48%; }
+        .control-row-main { width: 95%; max-width: 900px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .control-row-center { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; }
+        .autoplay-controls .form-select { width: 100px; }
     </style>
 </head>
 
@@ -195,18 +45,14 @@
                     <div class="card-body">
                         <div>
                             <div class="text-center mb-4">
-                                <span id="current-index-display" class="h5 text-dark fw-bold me-3">
-                                    載入中...
-                                </span>
+                                <span id="current-index-display" class="h5 text-dark fw-bold me-3">載入中...</span>
                             </div>
 
                             <div class="term-line" id="term-line-clickable" data-bs-toggle="collapse"
                                 data-bs-target="#explanation-content" aria-expanded="false"
                                 aria-controls="explanation-content">
-                                <h2 class="term-text" id="card-term">
-                                </h2>
-                                <span id="card-pos" class="pos-badge badge bg-primary">
-                                </span>
+                                <h2 class="term-text" id="card-term"></h2>
+                                <span id="card-pos" class="pos-badge badge bg-primary"></span>
                                 <span class="tts-button" id="term-tts-btn">🔊</span>
                                 <span id="card-type-info" class="ms-auto text-secondary small"></span>
                             </div>
@@ -214,8 +60,7 @@
                             <div class="collapse" id="explanation-content">
                                 <div class="explanation-line">
                                     <p class="content-label">解釋/中文意思:</p>
-                                    <p class="content-text explanation-style" id="card-explanation">
-                                    </p>
+                                    <p class="content-text explanation-style" id="card-explanation"></p>
                                 </div>
 
                                 <div class="example-line">
@@ -230,16 +75,12 @@
                         </div>
 
                         <div class="control-row-nav-internal">
-                            <button id="prev-btn" class="btn btn-warning btn-lg" onclick="navigateCard(-1)">←
-                                上一張</button>
-                            <button id="next-btn" class="btn btn-success btn-lg" onclick="handleNextClick()">下一張/看答案
-                                →</button>
+                            <button id="prev-btn" class="btn btn-warning btn-lg" onclick="navigateCard(-1)">← 上一張</button>
+                            <button id="next-btn" class="btn btn-success btn-lg" onclick="handleNextClick()">下一張/看答案 →</button>
                         </div>
-
                     </div>
                 </div>
                 <div class="control-row-main mt-4">
-
                     <div class="control-row-center">
                         <button onclick="history.back()" class="btn btn-secondary">← 返回上頁</button>
                         <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
@@ -247,24 +88,19 @@
                             <select id="interval-select" class="form-select w-auto me-2">
                                 <option value="1000">1 秒</option>
                                 <option value="2000">2 秒</option>
-                                <option value="3000">3 秒</option>
+                                <option value="3000" selected>3 秒</option>
                                 <option value="4000">4 秒</option>
-                                <option value="5000" selected>5 秒</option>
+                                <option value="5000">5 秒</option>
                                 <option value="6000">6 秒</option>
                                 <option value="7000">7 秒</option>
                                 <option value="8000">8 秒</option>
                                 <option value="9000">9 秒</option>
                                 <option value="10000">10 秒</option>
                             </select>
-                            <button id="play-pause-btn" class="btn btn-primary" onclick="toggleAutoPlay()">▶️
-                                自動播放</button>
+                            <button id="play-pause-btn" class="btn btn-primary" onclick="toggleAutoPlay()">▶️ 自動播放</button>
                         </div>
-
-                        <button id="replay-btn" class="btn btn-info" onclick="speakFullAnswerWithCancel()">🔊
-                            重唸答案</button>
-
+                        <button id="replay-btn" class="btn btn-info" onclick="speakFullAnswerWithCancel()">🔊 重唸答案</button>
                     </div>
-
                     <div class="control-row-center mt-3">
                         <label for="jump-to-input" class="form-label mb-0 fw-bold">跳轉至筆數:</label>
                         <input type="number" id="jump-to-input" class="form-control"
@@ -280,18 +116,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // =================================================================
-        // 核心變數和元素定義
-        // =================================================================
         const BATCH_SIZE = 20;
         let current_index = {{ current_index }};
         const total_count = {{ total_count }};
-        let currentCardData = null; // 從伺服器載入的當前卡片數據
-
+        let currentCardData = null;
         let cardCache = [];
         let currentBatchStart = 0;
 
-        // 元素選擇器
         const indexDisplay = document.getElementById('current-index-display');
         const termElement = document.getElementById('card-term');
         const posElement = document.getElementById('card-pos');
@@ -299,498 +130,188 @@
         const exampleElement = document.getElementById('card-example');
         const contentCollapse = document.getElementById('explanation-content');
         const typeInfoElement = document.getElementById('card-type-info');
-        const termLine = document.getElementById('term-line-clickable');
-        const headerElement = document.getElementById('flashcard-header');
         const nextButton = document.getElementById('next-btn');
         const jumpInput = document.getElementById('jump-to-input');
-
         const intervalSelect = document.getElementById('interval-select');
         const playPauseBtn = document.getElementById('play-pause-btn');
 
-        // 自動播放相關變數
         const SESSION_KEY = 'flashcard_autoplay_enabled';
         const INTERVAL_KEY = 'flashcard_autoplay_interval';
         let autoPlayTimeout = null;
-        let isSpeaking = false;
 
-
-        // =================================================================
-        // 輔助函數和語音合成 (TTS) 邏輯
-        // =================================================================
-
-        /**
-         * 輔助函數：移除文字中包含在半形 () 或全形 （） 括弧內的內容。
-         */
         function filterParentheses(text) {
             if (!text) return '';
-            // 正規表達式說明：
-            // \((.*?)\) 匹配半形括弧及其內容
-            // （(.*?)） 匹配全形括弧及其內容
-            // /g 表示全域匹配（替換所有出現的地方）
             return text.replace(/\((.*?)\)|（(.*?)）/g, '').trim();
         }
 
-        /**
-         * 停止自動播放循環和語音。
-         * @param {boolean} updateButton - 是否更新按鈕文字和啟用間隔選擇器。
-         */
         function stopAutoPlayLoop(updateButton = true) {
-            if (autoPlayTimeout) {
-                clearTimeout(autoPlayTimeout);
-                autoPlayTimeout = null;
-            }
-            // 確保停止所有語音
+            if (autoPlayTimeout) { clearTimeout(autoPlayTimeout); autoPlayTimeout = null; }
             window.speechSynthesis.cancel();
             sessionStorage.removeItem(SESSION_KEY);
-
-            if (intervalSelect) {
-                intervalSelect.disabled = false;
-            }
-
-            if (updateButton) {
-                playPauseBtn.innerHTML = '▶️ 自動播放';
-            }
+            if (intervalSelect) intervalSelect.disabled = false;
+            if (updateButton) playPauseBtn.innerHTML = '▶️ 自動播放';
         }
 
-
-        /**
-         * 執行語音播放。
-         */
         function speakText(text, lang, callback = () => { }) {
-            if (!('speechSynthesis' in window) || !text || text.trim() === '') {
-                callback();
-                return;
-            }
-
-            // 在此進行括弧內容過濾，確保所有經由 speakText 播放的語音都符合規則
+            if (!('speechSynthesis' in window) || !text || text.trim() === '') { callback(); return; }
             let textToSpeak = filterParentheses(text.trim());
-
-            // 處理日語文本，只讀取主要單字/文法，忽略 + 號後的資訊
             if (lang === 'ja-JP') {
                 const match = textToSpeak.match(/\[([^\]]+)\]/);
-                if (match && match[1]) {
-                    textToSpeak = match[1].trim();
-                } else {
-                    textToSpeak = textToSpeak.split('+')[0].trim();
-                }
+                textToSpeak = (match && match[1]) ? match[1].trim() : textToSpeak.split('+')[0].trim();
             }
-
             if (textToSpeak) {
                 const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
-                utterance.rate = 1.0;
-
-                utterance.onend = () => {
-                    isSpeaking = false;
-                    callback();
-                };
-
-                utterance.onerror = (e) => {
-                    console.error('TTS Error:', e);
-                    isSpeaking = false;
-                    callback();
-                };
-
-                isSpeaking = true;
+                utterance.onend = () => callback();
+                utterance.onerror = () => callback();
                 window.speechSynthesis.speak(utterance);
-            } else {
-                callback();
-            }
+            } else { callback(); }
         }
 
-        /**
-         * 核心TTS函數：依序播放日語 Term, 中文解釋, 日語例句
-         */
         function speakFullAnswer(callback = () => { }) {
-            if (!currentCardData || currentCardData.type === 'error') {
-                callback();
-                return;
-            }
-
-            // 1. 播放日語 Term
+            if (!currentCardData || currentCardData.type === 'error') { callback(); return; }
             speakText(currentCardData.term, 'ja-JP', () => {
-                // 2. 播放中文解釋 (speakText 內部已包含 filterParentheses)
-                const rawExplanation = currentCardData.explanation || "";
-                speakText(rawExplanation, 'zh-TW', () => {
-                    // 3. 播放日語例句
-                    const rawExample = currentCardData.example_sentence || "";
-                    speakText(rawExample, 'ja-JP', () => {
-                        // 4. 全部完成
-                        callback();
-                    });
+                speakText(currentCardData.explanation || "", 'zh-TW', () => {
+                    speakText(currentCardData.example_sentence || "", 'ja-JP', () => callback());
                 });
             });
         }
 
-        /**
-         * 供「重唸答案」按鈕使用的函數 (立即中斷並重唸答案)
-         */
         function speakFullAnswerWithCancel() {
-            stopAutoPlayLoop(true); // 停止自動播放 (裡面會呼叫 cancel())
-
-            // 確保答案展開
-            if (!contentCollapse.classList.contains('show')) {
-                new bootstrap.Collapse(contentCollapse, { toggle: true });
-            }
-
+            stopAutoPlayLoop(true);
+            if (!contentCollapse.classList.contains('show')) new bootstrap.Collapse(contentCollapse, { toggle: true });
             nextButton.textContent = '下一張 →';
-
-            setTimeout(() => {
-                // 🚨 修正點：在開始播放前再次強制取消，確保中斷正在播放或尚未開始的語音。
-                window.speechSynthesis.cancel();
-                speakFullAnswer(() => { /* do nothing */ });
-            }, 500);
+            setTimeout(() => { window.speechSynthesis.cancel(); speakFullAnswer(); }, 300);
         }
 
-        /**
-         * 翻譯前停止自動播放
-         */
         function openGoogleTranslate(text) {
             stopAutoPlayLoop(true);
-            window.speechSynthesis.cancel();
-            const encodedText = encodeURIComponent(text);
-            const url = `https://translate.google.com/?sl=ja&tl=zh-TW&text=${encodedText}&op=translate`;
-            window.open(url, '_blank');
+            window.open(`https://translate.google.com/?sl=ja&tl=zh-TW&text=${encodeURIComponent(text)}&op=translate`, '_blank');
             return false;
         }
 
-        // =================================================================
-        // AJAX 批次載入和導航
-        // =================================================================
-
         async function fetchAndCacheBatch(startIndex) {
-            if (startIndex >= total_count) {
-                cardCache = [];
-                currentBatchStart = total_count;
-                return;
-            }
-            termElement.textContent = '⏳ 載入下一批卡片...';
-            posElement.style.display = 'none';
-            typeInfoElement.textContent = '';
-            explanationElement.textContent = '';
-            exampleElement.textContent = '';
-            contentCollapse.classList.remove('show');
-            nextButton.textContent = '下一張/看答案 →';
+            if (startIndex >= total_count) return;
             try {
                 const response = await fetch(`/api/get_flashcard/${startIndex}`);
                 const result = await response.json();
-                if (result.success) {
-                    cardCache = result.cards;
-                    currentBatchStart = startIndex;
-                } else {
-                    cardCache = [];
-                    currentBatchStart = startIndex;
-                }
-            } catch (error) {
-                cardCache = [];
-                currentBatchStart = startIndex;
-            }
+                if (result.success) { cardCache = result.cards; currentBatchStart = startIndex; }
+            } catch (error) { console.error('Fetch error:', error); }
         }
 
-        function renderCard(card, autoSpeak = false) {
+        function renderCard(card, autoSpeakTermOnly = false) {
             currentCardData = card;
             indexDisplay.textContent = `第 ${current_index + 1} / ${total_count} 筆`;
             jumpInput.value = current_index + 1;
-
             termElement.innerHTML = card.term ? card.term.replace(/\|/g, '<br>') : 'N/A';
             posElement.textContent = card.part_of_speech || '';
             posElement.style.display = card.part_of_speech ? 'inline-block' : 'none';
-
             explanationElement.innerHTML = card.explanation ? card.explanation.replace(/\n/g, '<br>') : 'N/A';
             exampleElement.innerHTML = card.example_sentence ? card.example_sentence.replace(/\n/g, '<br>') : 'N/A';
-
             typeInfoElement.textContent = card.type === 'vocab' ? '單字' : (card.type === 'grammar' ? '文法' : '');
-
             contentCollapse.classList.remove('show');
             nextButton.textContent = '下一張/看答案 →';
-
-            if (autoSpeak) {
-                // 這裡只讀 Term
-                window.speechSynthesis.cancel();
-                speakText(card.term, 'ja-JP');
-            }
+            if (autoSpeakTermOnly) { window.speechSynthesis.cancel(); speakText(card.term, 'ja-JP'); }
         }
 
-        /**
-         * 處理跳轉與導航的核心函數
-         * @param {number} newIndex - 目標索引 (從 0 開始)
-         */
         async function navigateToNewIndex(newIndex) {
-            // 1. 檢查是否需要載入新的批次
             const cacheIndex = newIndex - currentBatchStart;
-            const requiresNewBatch = cacheIndex < 0 || cacheIndex >= cardCache.length;
-
-            if (requiresNewBatch) {
-                const newBatchStart = Math.floor(newIndex / BATCH_SIZE) * BATCH_SIZE;
-                await fetchAndCacheBatch(newBatchStart);
+            if (cacheIndex < 0 || cacheIndex >= cardCache.length) {
+                await fetchAndCacheBatch(Math.floor(newIndex / BATCH_SIZE) * BATCH_SIZE);
             }
-
             current_index = newIndex;
-
-            // 2. 從緩存中取出卡片
             const card = cardCache[current_index - currentBatchStart];
-            if (card) {
-                renderCard(card, true); // 渲染新卡片，並自動播放語音
-            } else {
-                renderCard({ term: '載入錯誤', part_of_speech: '', explanation: '無法從緩存中讀取卡片。', example_sentence: '', type: 'error' });
-                return;
-            }
-
-            // 3. 呼叫後端 API 更新進度
-            const response = await fetch('{{ url_for("update_flashcard_index") }}', {
+            if (card) renderCard(card, true);
+            await fetch('{{ url_for("update_flashcard_index") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ index: current_index })
             });
-
-            const result = await response.json();
-
-            // 4. 處理循環
-            if (result.wrapped) {
-                alert('恭喜！已經完成一輪學習。牌組將從第一張開始。');
-            }
-
-            // 5. 處理自動播放狀態
-            if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-                startAutoplaySequence();
-            }
+            if (sessionStorage.getItem(SESSION_KEY) === 'true') autoPlayWaitAndShowAnswer();
         }
 
-
-        /**
-         * 處理前後導航
-         * @param {number} step - 1 (下一個) 或 -1 (上一個)
-         */
         async function navigateCard(step) {
-            if (total_count === 0) return;
-
-            stopAutoPlayLoop(true); // 導航前停止自動播放
-
-            let newIndex = current_index + step;
-
-            if (newIndex >= total_count) {
-                newIndex = 0;
-            } else if (newIndex < 0) {
-                newIndex = total_count - 1;
-            }
-
-            await navigateToNewIndex(newIndex);
+            stopAutoPlayLoop(true);
+            await navigateToNewIndex((current_index + step + total_count) % total_count);
         }
 
-        /**
-         * 跳轉至指定筆數
-         */
         async function jumpToCard() {
             stopAutoPlayLoop(true);
-            window.speechSynthesis.cancel();
-
             const target = parseInt(jumpInput.value);
-
-            if (isNaN(target) || target < 1 || target > total_count) {
-                alert(`請輸入一個有效的筆數 (1 到 ${total_count})。`);
-                jumpInput.value = current_index + 1;
-                return;
-            }
-
-            const targetIndex = target - 1;
-
-            if (targetIndex === current_index) {
-                alert('已在目標卡片上。');
-                return;
-            }
-
-            await navigateToNewIndex(targetIndex);
+            if (!isNaN(target) && target >= 1 && target <= total_count) await navigateToNewIndex(target - 1);
         }
 
-
-        // =================================================================
-        // 手動操作和自動播放控制
-        // =================================================================
-
-        /**
-         * 處理下一張按鈕點擊 (先看答案，再跳下一張)
-         */
         async function handleNextClick() {
-            if (!currentCardData || currentCardData.type === 'error') return;
-
-            const isAnswerShown = contentCollapse.classList.contains('show');
-
-            if (!isAnswerShown) {
-                // 動作 1: 展開答案並播放語音
-                stopAutoPlayLoop(true); // 停止自動播放
-                window.speechSynthesis.cancel();
-
+            if (!currentCardData) return;
+            if (!contentCollapse.classList.contains('show')) {
+                stopAutoPlayLoop(true);
                 new bootstrap.Collapse(contentCollapse, { toggle: true });
                 nextButton.textContent = '下一張 →';
-
-                setTimeout(() => {
-                    // 播放前再次取消，防止自動播放的語音序列被延遲啟動
-                    window.speechSynthesis.cancel();
-                    // 播放完整答案，不帶回調 (不會啟動計時器)
-                    speakFullAnswer(() => { /* do nothing */ });
-                }, 500);
-
-            } else {
-                // 動作 2: 導航到下一張 
-                await navigateCard(1);
-            }
+                setTimeout(() => { window.speechSynthesis.cancel(); speakFullAnswer(); }, 300);
+            } else { await navigateCard(1); }
         }
 
-
-        /**
-         * 自動播放啟動的流程
-         */
-        function startAutoplaySequence() {
+        function autoPlayWaitAndShowAnswer() {
             if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
-
-            if (!contentCollapse.classList.contains('show')) {
-                new bootstrap.Collapse(contentCollapse, { toggle: true });
-            }
-
-            nextButton.textContent = '下一張 →';
-
-            setTimeout(() => {
-                // 播放前再次取消，確保語音獨立
+            const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 5000;
+            autoPlayTimeout = setTimeout(() => {
+                if (!contentCollapse.classList.contains('show')) new bootstrap.Collapse(contentCollapse, { toggle: true });
+                nextButton.textContent = '下一張 →';
                 window.speechSynthesis.cancel();
-                // 播放完整答案，完成後進入計時器
                 speakFullAnswer(() => {
-                    autoPlayStep();
+                    autoPlayTimeout = setTimeout(async () => {
+                        await navigateToNewIndex((current_index + 1) % total_count);
+                    }, interval);
                 });
-            }, 500);
-        }
-
-        /**
-         * 處理自動播放的計時和下一張導航。
-         */
-        function autoPlayStep() {
-            if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
-            if (autoPlayTimeout) clearTimeout(autoPlayTimeout);
-
-            const intervalString = sessionStorage.getItem(INTERVAL_KEY);
-            const interval = intervalString ? parseInt(intervalString) : 5000;
-
-            autoPlayTimeout = setTimeout(async () => {
-                window.speechSynthesis.cancel();
-                // 這裡我們直接導航到下一張，讓 navigateToNewIndex 處理後續的自動播放啟動
-                await navigateToNewIndex((current_index + 1) % total_count);
             }, interval);
         }
 
         function toggleAutoPlay() {
-            const btn = document.getElementById('play-pause-btn');
-
-            if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-                // 暫停邏輯
-                stopAutoPlayLoop(true); // 確保停止
-            } else {
-                // 開始邏輯
+            if (sessionStorage.getItem(SESSION_KEY) === 'true') { stopAutoPlayLoop(true); } 
+            else {
                 window.speechSynthesis.cancel();
-
-                const selectedInterval = intervalSelect.value;
-                sessionStorage.setItem(INTERVAL_KEY, selectedInterval);
-
+                sessionStorage.setItem(INTERVAL_KEY, intervalSelect.value);
                 sessionStorage.setItem(SESSION_KEY, 'true');
-                btn.innerHTML = '⏸️ 暫停';
-
+                playPauseBtn.innerHTML = '⏸️ 暫停';
                 intervalSelect.disabled = true;
-
-                startAutoplaySequence();
+                if (!contentCollapse.classList.contains('show')) {
+                    speakText(currentCardData.term, 'ja-JP', () => autoPlayWaitAndShowAnswer());
+                } else { autoPlayWaitAndShowAnswer(); }
             }
         }
 
-
-        // =================================================================
-        // 事件監聽器與初始化
-        // =================================================================
-
-        // 點擊 Term Line 或 Header 時立即停止自動播放
-        const manualToggleListener = (e) => {
-            // 避免點擊語音按鈕或翻譯例句時觸發開合
-            if (e.target.classList.contains('tts-button') || e.target.id === 'card-example') {
-                return;
-            }
-
-            stopAutoPlayLoop(true); // 停止自動播放
-            window.speechSynthesis.cancel();
-
-            // 檢查答案是否即將展開 (即目前是收合狀態)
-            const willBeShown = !contentCollapse.classList.contains('show');
-            if (willBeShown && currentCardData) {
+        document.getElementById('term-line-clickable').addEventListener('click', (e) => {
+            if (e.target.classList.contains('tts-button')) return;
+            stopAutoPlayLoop(true);
+            if (!contentCollapse.classList.contains('show')) {
                 nextButton.textContent = '下一張 →';
+                setTimeout(() => speakFullAnswer(), 300);
+            } else { nextButton.textContent = '下一張/看答案 →'; }
+        });
 
-                setTimeout(() => {
-                    // 播放前再次取消，確保中斷
-                    window.speechSynthesis.cancel();
-                    speakFullAnswer(() => { /* 手動翻牌不需回調 */ });
-                }, 500);
-            } else {
-                nextButton.textContent = '下一張/看答案 →';
-            }
-        };
-
-        // 綁定點擊事件
-        termLine.addEventListener('click', manualToggleListener);
-        headerElement.addEventListener('click', manualToggleListener);
-
+        document.getElementById('flashcard-header').addEventListener('click', () => {
+            stopAutoPlayLoop(true);
+        });
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // 1. 初始載入第一批數據 
-            if (cardCache.length === 0 && total_count > 0) {
-                // 根據從伺服器獲得的 current_index 決定應該從哪一筆開始載入快取
-                const requiredBatchStart = Math.floor(current_index / BATCH_SIZE) * BATCH_SIZE;
-
-                await fetchAndCacheBatch(requiredBatchStart);
-            }
-
-            // 2. 渲染第一張卡片
+            const startBatch = Math.floor(current_index / BATCH_SIZE) * BATCH_SIZE;
+            await fetchAndCacheBatch(startBatch);
             const initialCard = cardCache[current_index - currentBatchStart];
             if (initialCard) {
-                // 🚨 修正點：初始載入時也播放 Term 語音 (true)
-                renderCard(initialCard, true);
-
-                // 3. 綁定個別語音按鈕，並在點擊時停止自動播放
-                document.getElementById('term-tts-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    stopAutoPlayLoop(true);
-                    if (currentCardData && currentCardData.term) {
-                        // 播放前取消所有語音
-                        window.speechSynthesis.cancel();
-                        speakText(currentCardData.term, 'ja-JP');
-                    }
-                });
-
-                document.getElementById('example-tts-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    stopAutoPlayLoop(true);
-                    if (currentCardData && currentCardData.example_sentence) {
-                        // 播放前取消所有語音
-                        window.speechSynthesis.cancel();
-                        speakText(currentCardData.example_sentence, 'ja-JP');
-                    }
-                });
-
-                // 4. 初始化自動播放狀態
-                const storedInterval = sessionStorage.getItem(INTERVAL_KEY);
-                if (storedInterval) {
-                    intervalSelect.value = storedInterval;
-                }
-
+                renderCard(initialCard, true); // 🚨 修正：初始載入改為 true，確保唸出第一筆
                 if (sessionStorage.getItem(SESSION_KEY) === 'true') {
                     playPauseBtn.innerHTML = '⏸️ 暫停';
                     intervalSelect.disabled = true;
-                    // 頁面載入時繼續自動播放流程
-                    startAutoplaySequence();
-                } else {
-                    playPauseBtn.innerHTML = '▶️ 自動播放';
-                    intervalSelect.disabled = false;
+                    autoPlayWaitAndShowAnswer();
                 }
-
-
-            } else {
-                termElement.textContent = '清單為空，請回設定頁重新載入。';
             }
+            document.getElementById('term-tts-btn').addEventListener('click', (e) => {
+                e.stopPropagation(); stopAutoPlayLoop(true); speakText(currentCardData.term, 'ja-JP');
+            });
+            document.getElementById('example-tts-btn').addEventListener('click', (e) => {
+                e.stopPropagation(); stopAutoPlayLoop(true); speakText(currentCardData.example_sentence, 'ja-JP');
+            });
         });
     </script>
 </body>
-
 </html>
