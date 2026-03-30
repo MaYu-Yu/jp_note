@@ -224,7 +224,6 @@
              */
             function check_input(text, isCategory = false) {
                 const trimmed = text ? text.trim() : "";
-                if (isCategory && trimmed.includes(',')) return "分類名稱不能包含逗號「,」";
                 if (trimmed.length > 0 && sqlRegex.test(trimmed)) return "偵測到非法系統指令，請修改輸入內容。";
                 return null;
             }

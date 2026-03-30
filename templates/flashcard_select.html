@@ -312,14 +312,45 @@
         });
 
         // 函數：啟動單字卡頁面
+        // 修改後的 startDeck 函式
         async function startDeck(start_mode) {
+            // 1. 取得表單資料
+            const dataType = document.getElementById('data_type').value;
+            const categoryFilter = document.getElementById('category_filter').value;
+            const posFilter = document.getElementById('pos_filter').value;
 
-            if (start_mode === 'random') {
-                window.location.href = `{{ url_for('flashcard_deck') }}?start_mode=random`;
-                return;
+            const payload = {
+                data_type: dataType,
+                category_filter: categoryFilter,
+                pos_filter: posFilter
+            };
+
+            try {
+                // 2. 發送資料到後端存入 Session (對應 app.py 的 flashcard_data 路由)
+                const response = await fetch("{{ url_for('flashcard_data') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // 3. 只有在後端回傳成功 (且計算完卡片數量) 後才跳轉
+                    if (result.count === 0) {
+                        alert('所選的篩選條件下沒有任何卡片！');
+                        return;
+                    }
+                    window.location.href = `{{ url_for('flashcard_deck') }}?start_mode=${start_mode}`;
+                } else {
+                    alert('發生錯誤：' + result.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('無法連線至伺服器');
             }
-
-            window.location.href = `{{ url_for('flashcard_deck') }}?start_mode=normal`;
         }
 
     </script>

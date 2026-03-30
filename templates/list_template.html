@@ -131,7 +131,7 @@
             <button onclick="history.back()" class="btn btn-secondary">← 返回上頁</button>
             <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
             {% set add_route = 'add_vocab' if data_type == 'vocab' else 'add_grammar' %}
-            {% set add_url = url_for(add_route, category=current_category) if current_category and current_category !=
+            {% set add_url = url_for(add_route, page=current_page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) if current_category and current_category !=
             '__uncategorized__' else url_for(add_route) %}
             <a href="{{ add_url }}" class="btn btn-success">＋ 新增</a>
 
@@ -252,9 +252,13 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ url_for('edit_item', data_type=data_type, item_id=item.id) }}"
+                                <a href="{{ url_for('edit_item', data_type=data_type, item_id=item.id, page=current_page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}"
                                     class="btn btn-sm btn-warning">編輯</a>
-                                <button class="btn btn-sm btn-danger delete-btn" data-id="{{ item.id }}">刪除</button>
+
+                                <a href="{{ url_for('delete_item', data_type=data_type, item_id=item.id, page=current_page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}"
+                                    class="btn btn-sm btn-danger delete-confirm-btn" data-id="{{ item.id }}"
+                                    data-term="{{ item.word or item.title }}"> 刪除
+                                </a>
                             </td>
                         </tr>
                         {% endfor %}
@@ -398,37 +402,21 @@
             window.location.href = baseUrl.replace('PLACEHOLDER', pageNum);
         }
 
-        // 刪除按鈕功能
         document.addEventListener('DOMContentLoaded', function () {
-            const deleteButtons = document.querySelectorAll('.delete-btn');
-            deleteButtons.forEach(button => {
-                button.addEventListener('click', function () {
+            const deleteLinks = document.querySelectorAll('.delete-confirm-btn');
+
+            deleteLinks.forEach(link => {
+                link.addEventListener('click', function (event) {
                     const itemId = this.getAttribute('data-id');
-                    const dataType = '{{ data_type }}';
                     const term = this.closest('tr').querySelector('strong').textContent.trim();
+                    const typeText = '{{ "單字" if data_type == "vocab" else "文法" }}';
 
-                    if (confirm(`確定要刪除這筆 ID: ${itemId} 的「${term}」{{ '單字' if data_type == 'vocab' else '文法' }}嗎？`)) {
-                        fetch(`/delete/${dataType}/${itemId}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                        })
-                            .then(response => {
-                                // 由於 Flask 的 DELETE 路由是直接導向 list_page，這裡的 fetch 其實不會返回 JSON 成功訊息
-                                // 最簡單的處理方式是假設成功後直接重新載入頁面
-                                if (response.ok || response.redirected) {
-                                    // 使用 window.location.href 而不是 reload，確保正確處理閃現訊息
-                                    window.location.href = '{{ url_for("list_page", data_type=data_type, page=current_page, category=current_category, search=search_term, sort_by=sort_by, sort_order=sort_order, pos=pos_filter) }}';
-                                } else {
-                                    throw new Error(`HTTP 錯誤! 狀態: ${response.status}`);
-                                }
+                    // 組合你的提示詞
+                    const message = `確定要刪除這筆 ID: ${itemId} - ${term} ${typeText}嗎？`;
 
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                alert('刪除過程中發生錯誤。請檢查伺服器連線。');
-                            });
+                    // 如果使用者按下「取消」，阻止瀏覽器跳轉 href
+                    if (!confirm(message)) {
+                        event.preventDefault();
                     }
                 });
             });

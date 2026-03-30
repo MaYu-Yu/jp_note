@@ -614,7 +614,7 @@ def api_delete_category(category_name):
         conn.close()
 
 @app.route('/add/<data_type>', methods=['GET', 'POST'])
-def add_item(data_type):
+def add_item(data_type, page, category, search, sort_by, sort_order, pos):
     """新增單字或文法至資料庫。"""
     if data_type not in ['vocab', 'grammar']:
         return redirect(url_for('home'))
@@ -663,7 +663,13 @@ def add_item(data_type):
             
             conn.commit()
             flash(f'{data_type}「{term}」已成功新增！', 'success')
-            return redirect(url_for('list_page', data_type=data_type))
+            return redirect(url_for('list_page', data_type=data_type,
+                            page=page, 
+                            category=category, 
+                            search=search, 
+                            sort_by=sort_by, 
+                            sort_order=sort_order, 
+                            pos=pos))
         except sqlite3.Error as e:
             conn.rollback()
             flash(f'新增失敗: {e}', 'danger')
@@ -679,7 +685,6 @@ def edit_item(data_type, item_id):
     """編輯單字或文法至資料庫。"""
     if data_type not in ['vocab', 'grammar']:
         return redirect(url_for('home'))
-
     table_name = get_table_name(data_type)
     data_type_display = '單字' if data_type == 'vocab' else '文法'
     conn = get_db_connection()
@@ -723,7 +728,13 @@ def edit_item(data_type, item_id):
             
             conn.commit()
             flash(f'{data_type_display}「{term}」已成功更新！', 'success')
-            return redirect(url_for('list_page', data_type=data_type))
+            return redirect(url_for('list_page', data_type=data_type, 
+                                    page=request.args.get('page', None), 
+                                    category=request.args.get('category',None), 
+                                    search=request.args.get('search',None), 
+                                    sort_by=request.args.get('sort_by', None), 
+                                    sort_order=request.args.get('sort_order', None), 
+                                    pos=request.args.get('pos', None)))
         except sqlite3.Error as e:
             conn.rollback()
             flash(f'更新失敗: {e}', 'danger')
@@ -738,7 +749,13 @@ def edit_item(data_type, item_id):
 
     if item is None:
         flash(f'找不到 ID 為 {item_id} 的 {data_type_display}。', 'danger')
-        return redirect(url_for('list_page', data_type=data_type))
+        return redirect(url_for('list_page', data_type=data_type, 
+                                page=request.args.get('page', None), 
+                                category=request.args.get('category',None), 
+                                search=request.args.get('search',None), 
+                                sort_by=request.args.get('sort_by', None), 
+                                sort_order=request.args.get('sort_order', None), 
+                                pos=request.args.get('pos', None)))
 
     item = dict(item) 
     item['categories'] = get_item_categories_string(item_id, data_type)
@@ -751,12 +768,13 @@ def edit_item(data_type, item_id):
     # 傳遞完整的 MASTER_POS_LIST_RAW 給前端，因為前端需要顯示括號內的中文
     return render_template('edit_item.html', item=item, data_type=data_type, all_categories=all_categories, master_pos_list=MASTER_POS_LIST_RAW)
 
-@app.route('/delete/<data_type>/<int:item_id>', methods=['POST'])
+@app.route('/delete/<data_type>/<int:item_id>', methods=['GET', 'POST'])
 def delete_item(data_type, item_id):
     """刪除資料庫內的單字或文法。"""
+    
     if data_type not in ['vocab', 'grammar']:
         return redirect(url_for('home'))
-
+    
     table_name = get_table_name(data_type)
     data_type_display = '單字' if data_type == 'vocab' else '文法'
     
@@ -781,34 +799,48 @@ def delete_item(data_type, item_id):
         flash(f'刪除失敗: {e}', 'danger')
     finally:
         conn.close()
-        
-    return redirect(url_for('list_page', data_type=data_type))
+
+    return redirect(url_for('list_page', data_type=data_type, 
+                            page=request.args.get('page', None), 
+                            category=request.args.get('category',None), 
+                            search=request.args.get('search',None), 
+                            sort_by=request.args.get('sort_by', None), 
+                            sort_order=request.args.get('sort_order', None), 
+                            pos=request.args.get('pos', None)))
 
 @app.route('/add/vocab', methods=['GET', 'POST'])
 def add_vocab():
     """API 路由：新增單字。"""
-    initial_category = request.args.get('category', None)
-    
+    page=request.args.get('page', None)
+    category=request.args.get('category',None)
+    search=request.args.get('search',None)
+    sort_by=request.args.get('sort_by', None)
+    sort_order=request.args.get('sort_order', None)
+    pos=request.args.get('pos', None)
     if request.method == 'POST':
-        return add_item('vocab')
+        return add_item('vocab', page, category, search, sort_by, sort_order, pos)
     
     return render_template('add_vocab.html', 
                            master_pos_list=MASTER_POS_LIST_RAW,
                            all_categories=get_all_categories(), 
-                           initial_category=initial_category 
+                           initial_category=category 
                           )
 
 @app.route('/add/grammar', methods=['GET', 'POST'])
 def add_grammar():
     """API 路由：新增文法。"""
-    initial_category = request.args.get('category', None)
-    
+    page=request.args.get('page', None)
+    category=request.args.get('category',None)
+    search=request.args.get('search',None)
+    sort_by=request.args.get('sort_by', None)
+    sort_order=request.args.get('sort_order', None)
+    pos=request.args.get('pos', None)
     if request.method == 'POST':
-        return add_item('grammar')
+        return add_item('grammar', page, category, search, sort_by, sort_order, pos)
 
     return render_template('add_grammar.html', 
                            all_categories=get_all_categories(), 
-                           initial_category=initial_category
+                           initial_category=category
                           )
 
 # ----------------- 清單頁面 (MODIFIED) -----------------
