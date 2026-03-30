@@ -141,9 +141,8 @@ def init_db():
 def backend_normalize(text):
     if not text:
         return ""
-    # 1. 保留 NFKC：將全形「＋」「／」自動轉為半形，對檢索與顯示非常有幫助
-    text = unicodedata.normalize('NFKC', text)
-    return text.strip()
+    # NFKC：將全形「＋」「／」自動轉為半形，對檢索與顯示非常有幫助
+    return unicodedata.normalize('NFKC', text).strip()
 # ----------------- 日文假名轉換工具函數 (使用 Unicode 偏移) -----------------
 def _convert_kana(text, target_type='hiragana'):
     """
@@ -664,9 +663,7 @@ def add_item(data_type):
             
             conn.commit()
             flash(f'{data_type}「{term}」已成功新增！', 'success')
-            return redirect(url_for('list_page', 
-                                data_type=data_type,
-                                category=category_string))
+            return redirect(url_for('list_page', data_type=data_type))
         except sqlite3.Error as e:
             conn.rollback()
             flash(f'新增失敗: {e}', 'danger')
@@ -726,9 +723,7 @@ def edit_item(data_type, item_id):
             
             conn.commit()
             flash(f'{data_type_display}「{term}」已成功更新！', 'success')
-            return redirect(url_for('list_page', 
-                                data_type=data_type,
-                                category=category_string))
+            return redirect(url_for('list_page', data_type=data_type))
         except sqlite3.Error as e:
             conn.rollback()
             flash(f'更新失敗: {e}', 'danger')

@@ -133,7 +133,7 @@
                             <label class="btn btn-sm btn-outline-info" for="cat-{{ cat }}">{{ cat }}</label>
                             {% endfor %}
                         </div>
-                        <small class="form-text text-muted d-block mt-2">點擊上方按鈕可選擇多個現有分類。</small>
+                        <small class="form-text text-muted d-block mt-2">點擊上方按鈕可加入多個現有分類。</small>
                     </div>
 
                     <div class="mb-3">
@@ -184,7 +184,6 @@
              */
             function check_input(text, isCategory = false) {
                 const trimmed = text ? text.trim() : "";
-                if (isCategory && trimmed.includes(',')) return "分類名稱不能包含逗號「,」";
                 if (trimmed.length > 0 && sqlRegex.test(trimmed)) return "偵測到非法系統指令，請修改輸入內容。";
                 return null;
             }
