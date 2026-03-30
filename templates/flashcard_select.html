@@ -21,9 +21,11 @@
         .d-flex.flex-wrap button {
             /* 共用基礎樣式 */
             margin: 5px;
-            border-radius: 12px; /* 確保圓潤方形和對稱圓弧 */
+            border-radius: 12px;
+            /* 確保圓潤方形和對稱圓弧 */
             font-weight: 500;
-            padding: 10px 15px; /* 確保圓弧對稱所需的飽滿度 */
+            padding: 10px 15px;
+            /* 確保圓弧對稱所需的飽滿度 */
             min-width: 100px;
             transition: all 0.2s ease-in-out;
             text-align: center;
@@ -39,7 +41,8 @@
 
         /* 2 & 3. 分類和詞性的 "所有" 選項：全寬獨立成行 */
         .all-full-width {
-            width: calc(100% - 10px) !important; /* 佔滿一行並保持邊距 */
+            width: calc(100% - 10px) !important;
+            /* 佔滿一行並保持邊距 */
             margin-bottom: 10px !important;
             flex-grow: 0 !important;
             font-size: 1.05rem;
@@ -59,6 +62,7 @@
             color: white;
             font-weight: bold;
         }
+
         .btn-outline-highlight {
             color: #007bff;
             border-color: #007bff;
@@ -72,6 +76,7 @@
             color: white;
             font-weight: bold;
         }
+
         .btn-outline-success-highlight {
             color: #28a745;
             border-color: #28a745;
@@ -79,7 +84,9 @@
         }
 
         /* 點擊或選中時的視覺效果 */
-        .btn:active, .btn.active, .btn:focus {
+        .btn:active,
+        .btn.active,
+        .btn:focus {
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transform: translateY(-1px);
         }
@@ -88,7 +95,7 @@
         #pos-filter-group {
             transition: opacity 0.3s ease, max-height 0.3s ease;
             overflow: hidden;
-            max-height: 1000px; 
+            max-height: 1000px;
         }
 
         /* 選擇開始點的按鈕樣式 */
@@ -99,7 +106,6 @@
             font-weight: bold;
             flex-grow: 1;
         }
-
     </style>
 </head>
 
@@ -163,9 +169,9 @@
 
                             {# 迭代 MASTER_POS_LIST_RAW，但 data-value 傳遞縮寫 #}
                             {% for pos_raw in all_pos %}
-                                {% set pos_abbr = pos_raw.split(' ')[0].strip() %}
-                                <button type="button" class="btn btn-outline-success pos-option"
-                                    data-value="{{ pos_abbr }}">{{ pos_raw }}</button>
+                            {% set pos_abbr = pos_raw.split(' ')[0].strip() %}
+                            <button type="button" class="btn btn-outline-success pos-option"
+                                data-value="{{ pos_abbr }}">{{ pos_raw }}</button>
                             {% endfor %}
                         </div>
                     </div>
@@ -174,13 +180,11 @@
                     <div class="mb-4">
                         <label class="form-label fw-bold">4. 選擇開始點</label>
                         <div class="d-flex gap-3 start-button-group">
-                            <button type="button" class="btn btn-info w-50" onclick="startDeck('resume')">⏯️
-                                接續上次進度</button>
-                            <button type="button" class="btn btn-warning w-50" onclick="startDeck('start')">🔄
-                                從頭開始 (載入新篩選條件)</button>
+                            <button type="button" class="btn btn-warning w-25" onclick="startDeck('random')">🔄
+                                隨機順序</button>
+                            <button type="button" class="btn btn-success w-25" onclick="startDeck('start')">🔄
+                                按照順序</button>
                         </div>
-                        <small class="form-text text-muted mt-2 d-block">上次學習進度：<span
-                                id="last-index-info">正在初始化...</span></small>
                     </div>
                 </form>
             </div>
@@ -280,10 +284,10 @@
             if (dataType === 'vocab') {
                 posFilterDiv.style.display = 'block';
                 // 當詞性篩選器顯示時，強制刷新按鈕視覺狀態以匹配當前 pos_filter 的值。
-                setupButtonFilters('#pos-button-group', 'pos_filter', 'pos-option'); 
+                setupButtonFilters('#pos-button-group', 'pos_filter', 'pos-option');
             } else {
                 posFilterDiv.style.display = 'none';
-                
+
                 // 必須先將值重設為 'all'
                 posHiddenInput.value = 'all';
 
@@ -305,69 +309,19 @@
             // 初始化時檢查詞性篩選器是否應顯示/隱藏
             togglePosFilter();
 
-            document.getElementById('last-index-info').innerText = "請選擇內容後，點擊「從頭開始」載入數據，或點擊「接續上次進度」。";
         });
 
         // 函數：啟動單字卡頁面
         async function startDeck(action) {
 
-            if (action === 'resume') {
-                window.location.href = `{{ url_for('flashcard_deck') }}?action=resume`;
-                return;
-            }
-
-            const dataLoaded = await loadAndCheckData();
-
-            if (!dataLoaded) {
+            if (action === 'random') {
+                window.location.href = `{{ url_for('flashcard_deck') }}?action=random`;
                 return;
             }
 
             window.location.href = `{{ url_for('flashcard_deck') }}?action=start`;
         }
 
-        // 函數：加載數據並檢查上次進度，成功後將單字卡數據存入 Session
-        async function loadAndCheckData() {
-            const formData = new FormData(document.getElementById('flashcard-form'));
-            const data = Object.fromEntries(formData.entries());
-
-            if (data.data_type !== 'vocab') {
-                data.pos_filter = 'all';
-            }
-
-            const lastIndexInfoElement = document.getElementById('last-index-info');
-            lastIndexInfoElement.innerText = "⏳ 正在載入數據，請稍候...";
-
-            try {
-                const response = await fetch("{{ url_for('flashcard_data') }}", {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const result = await response.json();
-
-                if (result.success && result.count > 0) {
-                    lastIndexInfoElement.innerText =
-                        `✅ 數據載入成功！共 ${result.count} 筆。上次背到第 ${result.last_index + 1} 筆。`;
-                    return true;
-                } else if (result.count === 0) {
-                    lastIndexInfoElement.innerText = "❌ 清單中沒有符合條件的數據！請調整篩選條件。";
-                    alert("清單中沒有符合條件的數據！請調整篩選條件。");
-                    return false;
-                } else {
-                    lastIndexInfoElement.innerText = "❌ 數據加載失敗，請檢查後端日誌。";
-                    return false;
-                }
-            } catch (error) {
-                console.error('數據加載錯誤:', error);
-                lastIndexInfoElement.innerText = "❌ 網絡或伺服器錯誤，數據加載失敗。";
-                return false;
-            }
-        }
     </script>
 </body>
 

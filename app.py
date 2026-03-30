@@ -1054,6 +1054,7 @@ def api_get_flashcard(index):
     """根據 Session 中的篩選條件和指定索引獲取一整個批次卡片。"""
     
     filters = session.get('last_flashcard_filters')
+    random_sort = session.get('random_sort', False)
     total_count = session.get('flashcard_total_count', 0)
     
     if not filters or index < 0: 
@@ -1112,6 +1113,9 @@ def api_get_flashcard(index):
             cards.append(card_dict)
             
         conn.close()
+        if random_sort:
+            random.shuffle(cards)
+
         return jsonify({'success': True, 'cards': cards})
         
     except sqlite3.Error as e:
@@ -1156,7 +1160,7 @@ def update_flashcard_index():
 @app.route('/flashcard/deck')
 def flashcard_deck():
     """API 單字卡顯示區"""
-    action = request.args.get('action', 'resume')
+    action = request.args.get('action')
     
     filters = session.get('last_flashcard_filters', {})
     total_count = session.get('flashcard_total_count', 0) 
@@ -1164,12 +1168,13 @@ def flashcard_deck():
         flash('請先在設定頁面載入單字卡內容。', 'warning')
         return redirect(url_for('flashcard_select'))
 
-    current_index = session.get('last_flashcard_index', 0) 
+    current_index = 0
+    session['last_flashcard_index'] = 0
 
-    if action == 'start':
-        current_index = 0
-        session['last_flashcard_index'] = 0
-
+    if action == 'random':
+        session['random_sort'] = True
+    else:
+        session['random_sort'] = False
     if total_count > 0:
         if current_index >= total_count: 
              current_index = 0
