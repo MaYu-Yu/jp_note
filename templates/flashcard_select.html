@@ -98,7 +98,7 @@
             max-height: 1000px;
         }
 
-        /* 選擇開始點的按鈕樣式 */
+        /* 選擇排序的按鈕樣式 */
         .start-button-group button {
             font-size: 1.1rem;
             padding: 12px;
@@ -176,13 +176,13 @@
                         </div>
                     </div>
 
-                    {# 4. 選擇開始點 #}
+                    {# 4. 選擇開始排序 #}
                     <div class="mb-4">
-                        <label class="form-label fw-bold">4. 選擇開始點</label>
+                        <label class="form-label fw-bold">4. 選擇開始排序</label>
                         <div class="d-flex gap-3 start-button-group">
                             <button type="button" class="btn btn-warning w-25" onclick="startDeck('random')">🔄
                                 隨機順序</button>
-                            <button type="button" class="btn btn-success w-25" onclick="startDeck('start')">🔄
+                            <button type="button" class="btn btn-success w-25" onclick="startDeck('normal')">🔄
                                 按照順序</button>
                         </div>
                     </div>
@@ -312,14 +312,14 @@
         });
 
         // 函數：啟動單字卡頁面
-        async function startDeck(action) {
+        async function startDeck(start_mode) {
 
-            if (action === 'random') {
-                window.location.href = `{{ url_for('flashcard_deck') }}?action=random`;
+            if (start_mode === 'random') {
+                window.location.href = `{{ url_for('flashcard_deck') }}?start_mode=random`;
                 return;
             }
 
-            window.location.href = `{{ url_for('flashcard_deck') }}?action=start`;
+            window.location.href = `{{ url_for('flashcard_deck') }}?start_mode=normal`;
         }
 
     </script>

@@ -1054,7 +1054,7 @@ def api_get_flashcard(index):
     """根據 Session 中的篩選條件和指定索引獲取一整個批次卡片。"""
     
     filters = session.get('last_flashcard_filters')
-    random_sort = session.get('random_sort', False)
+    start_mode = session.get('start_mode', 'normal')
     total_count = session.get('flashcard_total_count', 0)
     
     if not filters or index < 0: 
@@ -1113,7 +1113,7 @@ def api_get_flashcard(index):
             cards.append(card_dict)
             
         conn.close()
-        if random_sort:
+        if start_mode == 'random':
             random.shuffle(cards)
 
         return jsonify({'success': True, 'cards': cards})
@@ -1160,8 +1160,6 @@ def update_flashcard_index():
 @app.route('/flashcard/deck')
 def flashcard_deck():
     """API 單字卡顯示區"""
-    action = request.args.get('action')
-    
     filters = session.get('last_flashcard_filters', {})
     total_count = session.get('flashcard_total_count', 0) 
     if total_count == 0: 
@@ -1170,11 +1168,8 @@ def flashcard_deck():
 
     current_index = 0
     session['last_flashcard_index'] = 0
-
-    if action == 'random':
-        session['random_sort'] = True
-    else:
-        session['random_sort'] = False
+    session['start_mode'] = request.args.get('start_mode')
+    
     if total_count > 0:
         if current_index >= total_count: 
              current_index = 0
