@@ -301,6 +301,17 @@
             }
         }
 
+        function getGoogleVoice(lang) {
+            const voices = window.speechSynthesis.getVoices();
+            if (lang === 'ja-JP') {
+                // 優先尋找 Google 日本語，若找不到則退而求其次找任何日文語音
+                return voices.find(v => v.name === 'Google 日本語') || voices.find(v => v.lang === 'ja-JP');
+            } else {
+                // 優先尋找 Google 國語（臺灣），若找不到則退而求其次找任何台灣中文語音
+                return voices.find(v => v.name === 'Google 國語（臺灣）') || voices.find(v => v.lang.includes('zh-TW'));
+            }
+        }
+
         function speakText(text, lang, callback = () => { }) {
             if (!('speechSynthesis' in window) || !text || text.trim() === '') {
                 callback(); return;
@@ -315,7 +326,15 @@
             }
 
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
+
+            // 設定語言
             utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
+
+            // --- 核心修改：設定指定的 Google 語音 ---
+            const selectedVoice = getGoogleVoice(utterance.lang);
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
 
             utterance.onend = () => { if (thisId === currentSpeakId) callback(); };
             utterance.onerror = () => { if (thisId === currentSpeakId) callback(); };
@@ -516,7 +535,7 @@
             // --- 狀態重置：確保每次重開網頁或重新整理時，都回歸預設手動模式 ---
             sessionStorage.removeItem(SESSION_KEY); // 移除自動播放狀態
             window.speechSynthesis.cancel(); // 停止任何殘留語音
-
+            window.speechSynthesis.getVoices();
             // 確保按鈕視覺回歸預設（藍色，顯示自動播放）
             if (playPauseBtn) {
                 playPauseBtn.innerHTML = '▶️ 自動播放';
