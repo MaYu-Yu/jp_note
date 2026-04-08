@@ -177,8 +177,8 @@
         <div class="row w-100 justify-content-center">
             <div class="col-12 col-lg-10">
                 <div class="card flashcard shadow">
-                    <div class="card-header card-header-main" id="flashcard-header" data-bs-toggle="collapse"
-                        data-bs-target="#explanation-content" aria-expanded="false" aria-controls="explanation-content">
+                    <div class="card-header card-header-main" id="flashcard-header" aria-expanded="false"
+                        aria-controls="explanation-content">
                         單字卡牌組：{{ filter_summary }}
                     </div>
 
@@ -188,8 +188,7 @@
                                 <span id="current-index-display" class="h5 text-dark fw-bold me-3">載入中...</span>
                             </div>
 
-                            <div class="term-line" id="term-line-clickable" data-bs-toggle="collapse"
-                                data-bs-target="#explanation-content" aria-expanded="false"
+                            <div class="term-line" id="term-line-clickable" aria-expanded="false"
                                 aria-controls="explanation-content">
                                 <h2 class="term-text" id="card-term"></h2>
                                 <span id="card-pos" class="pos-badge badge bg-primary"></span>
@@ -537,14 +536,6 @@
             }
         }
 
-        document.getElementById('term-line-clickable').addEventListener('click', (e) => {
-            if (e.target.classList.contains('tts-button')) return;
-            stopAutoPlayLoop(true);
-            if (!contentCollapse.classList.contains('show')) {
-                nextButton.textContent = '下一張 →';
-                setTimeout(() => speakFullAnswer(), 300);
-            } else { nextButton.textContent = '下一張/看答案 →'; }
-        });
 
         document.getElementById('flashcard-header').addEventListener('click', () => {
             stopAutoPlayLoop(true);
@@ -579,22 +570,29 @@
 
             // 單字行點擊：處理翻面或下一張
             document.getElementById('term-line-clickable').addEventListener('click', (e) => {
-                // 如果點擊的是語音按鈕，不觸發翻面
+                // 1. 如果點到的是小喇叭按鈕，只播聲音，不翻面
                 if (e.target.classList.contains('tts-button')) return;
+
+                // 2. 如果目前在自動播放，先停止它，避免邏輯打架
+                if (sessionStorage.getItem('flashcard_autoplay_enabled') === 'true') {
+                    stopAutoPlayLoop(true);
+                }
+
+                // 3. 執行翻面或下一張的邏輯
                 handleNextClick();
             });
 
             // 單字語音按鈕
             document.getElementById('term-tts-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                resetSequence(); // 打斷當前動作
+                stopAutoPlayLoop(true); // 使用 stop 而不僅是 reset，確保狀態同步
                 speakText(currentCardData.term, 'ja-JP');
             });
 
             // 例句語音按鈕
             document.getElementById('example-tts-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                resetSequence(); // 打斷當前動作
+                stopAutoPlayLoop(true); // 使用 stop，避免唸完後卡死
                 speakText(currentCardData.example_sentence, 'ja-JP');
             });
 
