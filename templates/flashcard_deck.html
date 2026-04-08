@@ -431,9 +431,15 @@
 
         // 這個函式用來「打斷當前的語音與計時」，但「保留自動播放狀態」
         function resetSequence() {
-            currentSpeakId++; // 截斷所有正在進行的 callback
-            if (autoPlayTimeout) { clearTimeout(autoPlayTimeout); autoPlayTimeout = null; }
-            window.speechSynthesis.cancel();
+            currentSpeakId++; // 提升 ID，讓舊的 callback 失效
+            if (autoPlayTimeout) {
+                clearTimeout(autoPlayTimeout);
+                autoPlayTimeout = null;
+            }
+            // 停止目前所有正在發音的語音
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
         }
 
         async function navigateCard(step) {
@@ -444,13 +450,26 @@
 
         async function handleNextClick() {
             if (!currentCardData) return;
+
+            const thisId = ++currentSpeakId; // 手動點擊時立刻更新 ID，阻斷之前的自動鏈條
+
             if (!contentCollapse.classList.contains('show')) {
-                resetSequence();
+                // 原本 resetSequence() 放在這裡也可以，但要確保 logic 順序
+                if (autoPlayTimeout) clearTimeout(autoPlayTimeout);
+                window.speechSynthesis.cancel();
+
                 new bootstrap.Collapse(contentCollapse, { toggle: true });
                 nextButton.textContent = '下一張 →';
+
+                // 延遲一點點確保 Collapse 動畫不會影響語音
                 setTimeout(() => {
+                    if (thisId !== currentSpeakId) return;
                     speakFullAnswer(() => {
-                        if (sessionStorage.getItem(SESSION_KEY) === 'true') autoPlayWaitAndShowAnswer();
+                        // 如果是自動播放模式，唸完答案後重新啟動「等待下一張」的計時
+                        if (sessionStorage.getItem(SESSION_KEY) === 'true' && thisId === currentSpeakId) {
+                            const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 3000;
+                            autoPlayTimeout = setTimeout(() => navigateCard(1), interval);
+                        }
                     });
                 }, 300);
             } else {
@@ -467,24 +486,24 @@
         }
 
         function autoPlayWaitAndShowAnswer() {
+            // 如果中途停止了自動播放，直接退出
             if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
 
             const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 3000;
-            const thisId = currentSpeakId;
+            const thisId = currentSpeakId; // 閉包鎖定當前 ID
 
-            // 第一階段延遲：展示題目後，等待翻面
             autoPlayTimeout = setTimeout(() => {
+                // 檢查：如果 ID 已變更（表示手動按了下一張），則不執行舊的翻面動作
                 if (thisId !== currentSpeakId) return;
 
                 // 翻開答案面
                 if (!contentCollapse.classList.contains('show')) {
                     new bootstrap.Collapse(contentCollapse, { toggle: true });
-                    nextButton.textContent = '下一張 →';
                 }
 
-                // 唸完所有內容後，再執行第二階段延遲
+                // 唸完內容後，再次檢查 ID 才進入下一張
                 speakFullAnswer(() => {
-                    if (thisId !== currentSpeakId) return;
+                    if (thisId !== currentSpeakId || sessionStorage.getItem(SESSION_KEY) !== 'true') return;
 
                     autoPlayTimeout = setTimeout(async () => {
                         if (thisId === currentSpeakId) {
