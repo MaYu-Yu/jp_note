@@ -7,28 +7,168 @@
     <title>單字卡學習</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .flashcard-container { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding-top: 5vh; }
-        .flashcard { width: 95%; max-width: 900px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); border-radius: 0.5rem; min-height: 450px; display: flex; flex-direction: column; }
-        .card-header-main { padding: 1.5rem 2rem; background-color: #d6eaff; border-bottom: 2px solid #007bff; border-radius: 0.5rem 0.5rem 0 0; font-size: 1.2rem; color: #007bff; font-weight: bold; cursor: pointer; }
-        .card-body { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 2rem; text-align: center; }
-        .term-text { font-size: 3rem; font-weight: bold; color: #007bff; margin: 0; line-height: 1.3; word-break: break-word; text-align: left; }
-        .term-line { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 1.5rem; border-bottom: 1px solid #ddd; padding-bottom: 1.5rem; cursor: pointer; min-height: 100px; }
-        .explanation-line, .example-line { text-align: left; }
-        .pos-badge, .tts-button { margin-left: 10px; }
-        .pos-badge { font-size: 1.2rem; }
-        .tts-button { cursor: pointer; color: #28a745; font-size: 1.5em; vertical-align: top; transition: color 0.2s; }
-        .tts-button:hover { color: #1e7e34; }
-        .explanation-line { margin-bottom: 1.5rem; }
-        .content-label { font-weight: bold; color: #6c757d; margin-bottom: 0.25rem; font-size: 1.1rem; text-align: left; }
-        .content-text { margin-bottom: 1rem; font-size: 1.1rem; line-height: 1.6; text-align: left; }
-        .explanation-style { color: #343a40; padding: 10px; background-color: #e9f5ff; border-left: 4px solid #007bff; border-radius: 4px; }
-        .example-style { color: #343a40; padding: 10px; background-color: #f7f7f7; border-left: 4px solid #28a745; border-radius: 4px; cursor: pointer; }
-        .control-row-nav-internal { display: flex; width: 100%; justify-content: space-between; gap: 15px; padding-top: 1rem; border-top: 1px solid #ddd; margin-top: auto; }
-        .control-row-nav-internal .btn-lg { flex-grow: 1; max-width: 48%; }
-        .control-row-main { width: 95%; max-width: 900px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
-        .control-row-center { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; align-items: center; }
-        .autoplay-controls .form-select { width: 100px; }
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .flashcard-container {
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding-top: 5vh;
+        }
+
+        .flashcard {
+            width: 95%;
+            max-width: 900px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 0.5rem;
+            min-height: 450px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-header-main {
+            padding: 1.5rem 2rem;
+            background-color: #d6eaff;
+            border-bottom: 2px solid #007bff;
+            border-radius: 0.5rem 0.5rem 0 0;
+            font-size: 1.2rem;
+            color: #007bff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .card-body {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .term-text {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #007bff;
+            margin: 0;
+            line-height: 1.3;
+            word-break: break-word;
+            text-align: left;
+        }
+
+        .term-line {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 1.5rem;
+            cursor: pointer;
+            min-height: 100px;
+        }
+
+        .explanation-line,
+        .example-line {
+            text-align: left;
+        }
+
+        .pos-badge,
+        .tts-button {
+            margin-left: 10px;
+        }
+
+        .pos-badge {
+            font-size: 1.2rem;
+        }
+
+        .tts-button {
+            cursor: pointer;
+            color: #28a745;
+            font-size: 1.5em;
+            vertical-align: top;
+            transition: color 0.2s;
+        }
+
+        .tts-button:hover {
+            color: #1e7e34;
+        }
+
+        .explanation-line {
+            margin-bottom: 1.5rem;
+        }
+
+        .content-label {
+            font-weight: bold;
+            color: #6c757d;
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem;
+            text-align: left;
+        }
+
+        .content-text {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            text-align: left;
+        }
+
+        .explanation-style {
+            color: #343a40;
+            padding: 10px;
+            background-color: #e9f5ff;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+
+        .example-style {
+            color: #343a40;
+            padding: 10px;
+            background-color: #f7f7f7;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .control-row-nav-internal {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            gap: 15px;
+            padding-top: 1rem;
+            border-top: 1px solid #ddd;
+            margin-top: auto;
+        }
+
+        .control-row-nav-internal .btn-lg {
+            flex-grow: 1;
+            max-width: 48%;
+        }
+
+        .control-row-main {
+            width: 95%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-row-center {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .autoplay-controls .form-select {
+            width: 100px;
+        }
     </style>
 </head>
 
@@ -75,8 +215,10 @@
                         </div>
 
                         <div class="control-row-nav-internal">
-                            <button id="prev-btn" class="btn btn-warning btn-lg" onclick="navigateCard(-1)">← 上一張</button>
-                            <button id="next-btn" class="btn btn-success btn-lg" onclick="handleNextClick()">下一張/看答案 →</button>
+                            <button id="prev-btn" class="btn btn-warning btn-lg" onclick="navigateCard(-1)">←
+                                上一張</button>
+                            <button id="next-btn" class="btn btn-success btn-lg" onclick="handleNextClick()">下一張/看答案
+                                →</button>
                         </div>
                     </div>
                 </div>
@@ -97,9 +239,11 @@
                                 <option value="9000">9 秒</option>
                                 <option value="10000">10 秒</option>
                             </select>
-                            <button id="play-pause-btn" class="btn btn-primary" onclick="toggleAutoPlay()">▶️ 自動播放</button>
+                            <button id="play-pause-btn" class="btn btn-primary" onclick="toggleAutoPlay()">▶️
+                                自動播放</button>
                         </div>
-                        <button id="replay-btn" class="btn btn-info" onclick="speakFullAnswerWithCancel()">🔊 重唸答案</button>
+                        <button id="replay-btn" class="btn btn-info" onclick="speakFullAnswerWithCancel()">🔊
+                            重唸答案</button>
                     </div>
                     <div class="control-row-center mt-3">
                         <label for="jump-to-input" class="form-label mb-0 fw-bold">跳轉至筆數:</label>
@@ -170,9 +314,16 @@
 
         function speakFullAnswer(callback = () => { }) {
             if (!currentCardData || currentCardData.type === 'error') { callback(); return; }
+
+            // 1. 唸單字 (日文)
             speakText(currentCardData.term, 'ja-JP', () => {
+                // 2. 唸解釋 (中文)
                 speakText(currentCardData.explanation || "", 'zh-TW', () => {
-                    speakText(currentCardData.example_sentence || "", 'ja-JP', () => callback());
+                    // 3. 唸例句第一遍 (日文)
+                    speakText(currentCardData.example_sentence || "", 'ja-JP', () => {
+                        // 4. 唸例句第二遍 (日文)，完成後才執行 callback 進入下一張倒數
+                        speakText(currentCardData.example_sentence || "", 'ja-JP', () => callback());
+                    });
                 });
             });
         }
@@ -267,7 +418,7 @@
         }
 
         function toggleAutoPlay() {
-            if (sessionStorage.getItem(SESSION_KEY) === 'true') { stopAutoPlayLoop(true); } 
+            if (sessionStorage.getItem(SESSION_KEY) === 'true') { stopAutoPlayLoop(true); }
             else {
                 window.speechSynthesis.cancel();
                 sessionStorage.setItem(INTERVAL_KEY, intervalSelect.value);
@@ -314,4 +465,5 @@
         });
     </script>
 </body>
+
 </html>
