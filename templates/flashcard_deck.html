@@ -228,9 +228,9 @@
                         <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
                         <div class="autoplay-controls d-flex flex-nowrap align-items-center">
                             <select id="interval-select" class="form-select w-auto me-2">
-                                <option value="1000">1 秒</option>
+                                <option value="1000" selected>1 秒</option>
                                 <option value="2000">2 秒</option>
-                                <option value="3000" selected>3 秒</option>
+                                <option value="3000">3 秒</option>
                                 <option value="4000">4 秒</option>
                                 <option value="5000">5 秒</option>
                                 <option value="6000">6 秒</option>
@@ -267,6 +267,12 @@
         let cardCache = [];
         let currentBatchStart = 0;
 
+        // --- 核心修復變數 ---
+        let currentSpeakId = 0; // 唯一序列鎖，防止語音重疊
+        let autoPlayTimeout = null;
+        const SESSION_KEY = 'flashcard_autoplay_enabled';
+        const INTERVAL_KEY = 'flashcard_autoplay_interval';
+
         const indexDisplay = document.getElementById('current-index-display');
         const termElement = document.getElementById('card-term');
         const posElement = document.getElementById('card-pos');
@@ -279,60 +285,76 @@
         const intervalSelect = document.getElementById('interval-select');
         const playPauseBtn = document.getElementById('play-pause-btn');
 
-        const SESSION_KEY = 'flashcard_autoplay_enabled';
-        const INTERVAL_KEY = 'flashcard_autoplay_interval';
-        let autoPlayTimeout = null;
-
         function filterParentheses(text) {
             if (!text) return '';
             return text.replace(/\((.*?)\)|（(.*?)）/g, '').trim();
         }
 
         function stopAutoPlayLoop(updateButton = true) {
-            if (autoPlayTimeout) { clearTimeout(autoPlayTimeout); autoPlayTimeout = null; }
-            window.speechSynthesis.cancel();
-            sessionStorage.removeItem(SESSION_KEY);
+            resetSequence();
+            sessionStorage.removeItem(SESSION_KEY); // 清除狀態
             if (intervalSelect) intervalSelect.disabled = false;
-            if (updateButton) playPauseBtn.innerHTML = '▶️ 自動播放';
+            if (updateButton && playPauseBtn) {
+                playPauseBtn.innerHTML = '▶️ 自動播放';
+                playPauseBtn.classList.remove('btn-danger');
+                playPauseBtn.classList.add('btn-primary'); // 回歸藍色
+            }
         }
 
         function speakText(text, lang, callback = () => { }) {
-            if (!('speechSynthesis' in window) || !text || text.trim() === '') { callback(); return; }
+            if (!('speechSynthesis' in window) || !text || text.trim() === '') {
+                callback(); return;
+            }
+
+            const thisId = currentSpeakId; // 記錄發起時的 ID
             let textToSpeak = filterParentheses(text.trim());
+
             if (lang === 'ja-JP') {
                 const match = textToSpeak.match(/\[([^\]]+)\]/);
                 textToSpeak = (match && match[1]) ? match[1].trim() : textToSpeak.split('+')[0].trim();
             }
-            if (textToSpeak) {
-                const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
-                utterance.onend = () => callback();
-                utterance.onerror = () => callback();
-                window.speechSynthesis.speak(utterance);
-            } else { callback(); }
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
+
+            utterance.onend = () => { if (thisId === currentSpeakId) callback(); };
+            utterance.onerror = () => { if (thisId === currentSpeakId) callback(); };
+            window.speechSynthesis.speak(utterance);
         }
 
         function speakFullAnswer(callback = () => { }) {
             if (!currentCardData || currentCardData.type === 'error') { callback(); return; }
+            const thisId = currentSpeakId;
 
-            // 1. 唸單字 (日文)
             speakText(currentCardData.term, 'ja-JP', () => {
-                // 2. 唸解釋 (中文)
+                if (thisId !== currentSpeakId) return;
                 speakText(currentCardData.explanation || "", 'zh-TW', () => {
-                    // 3. 唸例句第一遍 (日文)
+                    if (thisId !== currentSpeakId) return;
                     speakText(currentCardData.example_sentence || "", 'ja-JP', () => {
-                        // 4. 唸例句第二遍 (日文)，完成後才執行 callback 進入下一張倒數
-                        speakText(currentCardData.example_sentence || "", 'ja-JP', () => callback());
+                        if (thisId !== currentSpeakId) return;
+                        // 例句唸第二次
+                        speakText(currentCardData.example_sentence || "", 'ja-JP', () => {
+                            if (thisId === currentSpeakId) callback();
+                        });
                     });
                 });
             });
         }
 
+        // 重唸答案按鈕
         function speakFullAnswerWithCancel() {
-            stopAutoPlayLoop(true);
+            resetSequence(); // 重唸答案不會關閉自動播放，只會重新開始這筆的語音鏈
             if (!contentCollapse.classList.contains('show')) new bootstrap.Collapse(contentCollapse, { toggle: true });
             nextButton.textContent = '下一張 →';
-            setTimeout(() => { window.speechSynthesis.cancel(); speakFullAnswer(); }, 300);
+            setTimeout(() => {
+                speakFullAnswer(() => {
+                    if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+                        // 唸完後如果是自動播放，過一個間隔後跳下一張
+                        const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 3000;
+                        autoPlayTimeout = setTimeout(() => navigateCard(1), interval);
+                    }
+                });
+            }, 300);
         }
 
         function openGoogleTranslate(text) {
@@ -362,7 +384,14 @@
             typeInfoElement.textContent = card.type === 'vocab' ? '單字' : (card.type === 'grammar' ? '文法' : '');
             contentCollapse.classList.remove('show');
             nextButton.textContent = '下一張/看答案 →';
-            if (autoSpeakTermOnly) { window.speechSynthesis.cancel(); speakText(card.term, 'ja-JP'); }
+
+            if (autoSpeakTermOnly) {
+                if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+                    speakText(card.term, 'ja-JP', () => autoPlayWaitAndShowAnswer());
+                } else {
+                    speakText(card.term, 'ja-JP');
+                }
+            }
         }
 
         async function navigateToNewIndex(newIndex) {
@@ -373,61 +402,100 @@
             current_index = newIndex;
             const card = cardCache[current_index - currentBatchStart];
             if (card) renderCard(card, true);
+
             await fetch('{{ url_for("update_flashcard_index") }}', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ index: current_index })
             });
-            if (sessionStorage.getItem(SESSION_KEY) === 'true') autoPlayWaitAndShowAnswer();
+        }
+
+        // 這個函式用來「打斷當前的語音與計時」，但「保留自動播放狀態」
+        function resetSequence() {
+            currentSpeakId++; // 截斷所有正在進行的 callback
+            if (autoPlayTimeout) { clearTimeout(autoPlayTimeout); autoPlayTimeout = null; }
+            window.speechSynthesis.cancel();
         }
 
         async function navigateCard(step) {
-            stopAutoPlayLoop(true);
+            // 如果原本在自動播放，resetSequence 會處理語音，但保留 SESSION_KEY 使其續播
+            resetSequence();
             await navigateToNewIndex((current_index + step + total_count) % total_count);
-        }
-
-        async function jumpToCard() {
-            stopAutoPlayLoop(true);
-            const target = parseInt(jumpInput.value);
-            if (!isNaN(target) && target >= 1 && target <= total_count) await navigateToNewIndex(target - 1);
         }
 
         async function handleNextClick() {
             if (!currentCardData) return;
             if (!contentCollapse.classList.contains('show')) {
-                stopAutoPlayLoop(true);
+                resetSequence();
                 new bootstrap.Collapse(contentCollapse, { toggle: true });
                 nextButton.textContent = '下一張 →';
-                setTimeout(() => { window.speechSynthesis.cancel(); speakFullAnswer(); }, 300);
-            } else { await navigateCard(1); }
+                setTimeout(() => {
+                    speakFullAnswer(() => {
+                        if (sessionStorage.getItem(SESSION_KEY) === 'true') autoPlayWaitAndShowAnswer();
+                    });
+                }, 300);
+            } else {
+                await navigateCard(1);
+            }
+        }
+
+        async function jumpToCard() {
+            const target = parseInt(jumpInput.value);
+            if (!isNaN(target) && target >= 1 && target <= total_count) {
+                resetSequence();
+                await navigateToNewIndex(target - 1);
+            }
         }
 
         function autoPlayWaitAndShowAnswer() {
             if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
-            const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 5000;
+
+            const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 3000;
+            const thisId = currentSpeakId;
+
+            // 第一階段延遲：展示題目後，等待翻面
             autoPlayTimeout = setTimeout(() => {
-                if (!contentCollapse.classList.contains('show')) new bootstrap.Collapse(contentCollapse, { toggle: true });
-                nextButton.textContent = '下一張 →';
-                window.speechSynthesis.cancel();
+                if (thisId !== currentSpeakId) return;
+
+                // 翻開答案面
+                if (!contentCollapse.classList.contains('show')) {
+                    new bootstrap.Collapse(contentCollapse, { toggle: true });
+                    nextButton.textContent = '下一張 →';
+                }
+
+                // 唸完所有內容後，再執行第二階段延遲
                 speakFullAnswer(() => {
+                    if (thisId !== currentSpeakId) return;
+
                     autoPlayTimeout = setTimeout(async () => {
-                        await navigateToNewIndex((current_index + 1) % total_count);
+                        if (thisId === currentSpeakId) {
+                            await navigateToNewIndex((current_index + 1) % total_count);
+                        }
                     }, interval);
                 });
             }, interval);
         }
 
         function toggleAutoPlay() {
-            if (sessionStorage.getItem(SESSION_KEY) === 'true') { stopAutoPlayLoop(true); }
-            else {
-                window.speechSynthesis.cancel();
+            if (sessionStorage.getItem(SESSION_KEY) === 'true') {
+                stopAutoPlayLoop(true);
+            } else {
+                resetSequence();
                 sessionStorage.setItem(INTERVAL_KEY, intervalSelect.value);
                 sessionStorage.setItem(SESSION_KEY, 'true');
-                playPauseBtn.innerHTML = '⏸️ 暫停';
+
+                // 變更為暫停狀態（紅色）
+                playPauseBtn.innerHTML = '⏸️ 暫停播放';
+                playPauseBtn.classList.remove('btn-primary');
+                playPauseBtn.classList.add('btn-danger');
+
                 intervalSelect.disabled = true;
+
                 if (!contentCollapse.classList.contains('show')) {
                     speakText(currentCardData.term, 'ja-JP', () => autoPlayWaitAndShowAnswer());
-                } else { autoPlayWaitAndShowAnswer(); }
+                } else {
+                    autoPlayWaitAndShowAnswer();
+                }
             }
         }
 
@@ -445,22 +513,59 @@
         });
 
         document.addEventListener('DOMContentLoaded', async () => {
+            // --- 狀態重置：確保每次重開網頁或重新整理時，都回歸預設手動模式 ---
+            sessionStorage.removeItem(SESSION_KEY); // 移除自動播放狀態
+            window.speechSynthesis.cancel(); // 停止任何殘留語音
+
+            // 確保按鈕視覺回歸預設（藍色，顯示自動播放）
+            if (playPauseBtn) {
+                playPauseBtn.innerHTML = '▶️ 自動播放';
+                playPauseBtn.classList.remove('btn-danger');
+                playPauseBtn.classList.add('btn-primary');
+            }
+            if (intervalSelect) {
+                intervalSelect.disabled = false;
+            }
+
+            // --- 初始資料載入 ---
             const startBatch = Math.floor(current_index / BATCH_SIZE) * BATCH_SIZE;
             await fetchAndCacheBatch(startBatch);
+
             const initialCard = cardCache[current_index - currentBatchStart];
             if (initialCard) {
-                renderCard(initialCard, true); // 🚨 修正：初始載入改為 true，確保唸出第一筆
-                if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-                    playPauseBtn.innerHTML = '⏸️ 暫停';
-                    intervalSelect.disabled = true;
-                    autoPlayWaitAndShowAnswer();
-                }
+                // 載入第一筆，並根據先前設定自動唸出單字（不觸發續播鏈）
+                renderCard(initialCard, true);
             }
-            document.getElementById('term-tts-btn').addEventListener('click', (e) => {
-                e.stopPropagation(); stopAutoPlayLoop(true); speakText(currentCardData.term, 'ja-JP');
+
+            // --- 事件監聽器掛載 ---
+
+            // 單字行點擊：處理翻面或下一張
+            document.getElementById('term-line-clickable').addEventListener('click', (e) => {
+                // 如果點擊的是語音按鈕，不觸發翻面
+                if (e.target.classList.contains('tts-button')) return;
+                handleNextClick();
             });
+
+            // 單字語音按鈕
+            document.getElementById('term-tts-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                resetSequence(); // 打斷當前動作
+                speakText(currentCardData.term, 'ja-JP');
+            });
+
+            // 例句語音按鈕
             document.getElementById('example-tts-btn').addEventListener('click', (e) => {
-                e.stopPropagation(); stopAutoPlayLoop(true); speakText(currentCardData.example_sentence, 'ja-JP');
+                e.stopPropagation();
+                resetSequence(); // 打斷當前動作
+                speakText(currentCardData.example_sentence, 'ja-JP');
+            });
+
+            // 監聽解釋展開狀態，同步更新「下一張」按鈕文字
+            contentCollapse.addEventListener('shown.bs.collapse', () => {
+                nextButton.textContent = '下一張 →';
+            });
+            contentCollapse.addEventListener('hidden.bs.collapse', () => {
+                nextButton.textContent = '下一張/看答案 →';
             });
         });
     </script>
