@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% set is_edit = item is defined and item %}
+    {% if is_edit %}
+        {% set is_vocab = (data_type == 'vocab') %}
+    {% else %}
+        {% set is_vocab = (master_pos_list is defined and master_pos_list) %}
+    {% endif %}
+    <title>{% if is_edit %}編輯{% else %}新增{% endif %}{{ '單字' if is_vocab else '文法' }}</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    
+    <style>
+        /* 詞性與分類按鈕樣式 */
+        .btn-check:checked+.btn-outline-primary { background-color: #0d6efd; color: white; }
+        .btn-check:checked+.btn-outline-info { background-color: #0dcaf0; color: black; border-color: #0dcaf0; }
+
+        /* === Quill 編輯器基礎樣式 === */
+        .ql-editor {
+            font-size: 16px !important; /* 維持網頁原生預設 HTML 字體大小 16px */
+            min-height: 150px;
+            line-height: 1.6;
+        }
+
+        /* 調整清單在編輯器內的縮排與間距，使其更好看 */
+        .ql-editor ol, .ql-editor ul {
+            padding-left: 1.5em;
+            margin-bottom: 10px;
+        }
+
+        /* 工具列固定排版：極簡精準排列 */
+        .ql-toolbar.ql-snow {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 2px !important;
+            align-items: center !important;
+            background-color: #f8f9fa !important;
+            border-radius: 4px 4px 0 0;
+            padding: 6px 8px !important;
+        }
+
+        /* 確保所有工具在同一個高度完美置中對齊 */
+        .ql-snow .ql-formats {
+            display: inline-flex !important;
+            align-items: center !important;
+            margin-right: 4px !important;
+        }
+
+        /* === 字體大小下拉選單外觀自訂 === */
+        .ql-snow .ql-picker.ql-size { width: 55px !important; }
+        
+        /* 將選單內有設定 px 屬性的數值過濾，只顯示純數字 */
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: '20' !important; }
+        
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="24px"]::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before { content: '24' !important; }
+        
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="32px"]::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before { content: '32' !important; }
+        
+        .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="40px"]::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="40px"]::before { content: '40' !important; }
+
+        /* 當沒有 data-value 屬性時（最純淨原生預設狀態），選單與選項強制顯示為純數字 16 */
+        .ql-snow .ql-picker.ql-size .ql-picker-label:not([data-value])::before,
+        .ql-snow .ql-picker.ql-size .ql-picker-item:not([data-value])::before {
+            content: '16' !important;
+        }
+
+        /* 統一調整清單按鈕與其他 SVG 的寬高，使其與清除格式等按鈕一樣高 */
+        .ql-snow .ql-toolbar button.ql-list {
+            width: 28px !important;
+            height: 24px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* === 「讀」字按鈕樣式 === */
+        .ql-snow .ql-toolbar button.ql-furigana {
+            font-size: 15px !important;
+            font-weight: bold !important;
+            color: #444 !important;
+            width: 28px !important;
+            height: 24px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+            transition: color 0.2s ease;
+        }
+        .ql-snow .ql-toolbar button.ql-furigana:hover { color: #0d6efd !important; }
+
+        /* === 極簡 Tx 清除格式按鈕樣式 === */
+        .ql-snow .ql-toolbar button.ql-clean {
+            width: 28px !important;
+            height: 24px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 !important;
+        }
+        .ql-snow .ql-toolbar button.ql-clean svg {
+            display: inline-block !important;
+            width: 18px !important;
+            height: 18px !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">
+            {% if is_edit %}
+                💾 編輯{{ '✏️ 單字' if is_vocab else '📘 文法' }}
+            {% else %}
+                ✏️ 新增{{ '日語單字' if is_vocab else '日語文法' }}
+            {% endif %}
+        </h1>
+        
+        <div class="mb-4 d-flex gap-2">
+            <button onclick="history.back()" class="btn btn-secondary mb-3 ms-2">← 返回上頁</button>
+            <a href="{{ url_for('home') }}" class="btn btn-secondary mb-3 ms-2">🏠 返回首頁</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert alert-info">
+            {% for category, message in messages %}<p class="mb-0">{{ message }}</p>{% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="POST">
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label fw-bold mb-0">
+                                日語{{ '單字' if is_vocab else '文法' }}
+                                <span class="text-danger fw-small">
+                                    {% if is_vocab %}
+                                        (請用 [ ] 標註讀音，播放語音時只會播放讀音，例如: ご飯[ごはん])
+                                    {% else %}
+                                        (請用 [ ] 標註核心文法，例如: V-辭書形 + [ことができる]，使用 | 換行)
+                                    {% endif %}
+                                </span>
+                            </label>
+                            
+                            {% if not is_vocab %}
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-info dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    快捷鍵
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" id="grammar-shortcuts">
+                                    <li><a class="dropdown-item" href="#" data-pos="V">V</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="V-ます形">V-ます形</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="V-辭書形">V-辭書形</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="V-て形">V-て形</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="V-た形">V-た形</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="V-ない形">V-ない形</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="V-普通形">V-普通形</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="名詞">名詞</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="い形">い形</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="な形">な形</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="[]">[]</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos="|">| (換行)</a></li>
+                                    <li><a class="dropdown-item" href="#" data-pos=" + ">+</a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <input type="hidden" id="term-hidden" name="term">
+                        <div id="term-editor-container" class="bg-white">{% if is_edit %}{{ item.term | safe }}{% endif %}</div>
+                    </div>
+
+                    {% if is_vocab %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">詞性</label>
+                        <div class="d-flex flex-wrap gap-2" id="pos-checkbox-group">
+                            {% for pos_raw in master_pos_list %}
+                            {% set pos_abbr = pos_raw.split(' ')[0].strip() %}
+                            {% set is_checked = is_edit and (pos_abbr in item.selected_pos_list) %}
+                            <input type="checkbox" class="btn-check" id="pos-{{ pos_abbr }}"
+                                name="selected_pos" value="{{ pos_abbr }}" {% if is_checked %}checked{% endif %}>
+                            <label class="btn btn-outline-primary" for="pos-{{ pos_abbr }}">{{ pos_raw }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="explanation" class="form-label fw-bold">解釋/中文意思</label>
+                            <textarea class="form-control" id="explanation" name="explanation" rows="2">{% if is_edit %}{{ item.explanation or '' }}{% endif %}</textarea>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="example_sentence" class="form-label fw-bold">例句</label>
+                            <textarea class="form-control" id="example_sentence" name="example_sentence" rows="2">{% if is_edit %}{{ item.example_sentence or '' }}{% endif %}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold d-block">選擇現有分類</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% set current_categories = (item.categories.split(',') | map('trim') | list) if (is_edit and item.categories) else [] %}
+                            {% for cat in all_categories %}
+                            <input type="checkbox" class="btn-check" id="cat-{{ cat }}" name="selected_categories" value="{{ cat }}"
+                                {% if (is_edit and cat in current_categories) or (not is_edit and cat == initial_category) %}checked{% endif %}>
+                            <label class="btn btn-sm btn-outline-info" for="cat-{{ cat }}">{{ cat }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="new_categories" class="form-label fw-bold">新增分類 (多個請用逗號隔開)</label>
+                        <input type="text" class="form-control" id="new_categories" name="new_categories">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mt-3">
+                        {% if is_edit %}💾 更新儲存{% else %}➕ 儲存項目{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            
+            // 1. 設定額外尺寸白名單（排除 16px，維持原生 16px 狀態不加 style 語法）
+            const sizeWhitelist = ['20px', '24px', '32px', '40px'];
+            const SizeStyle = Quill.import('attributors/style/size');
+            SizeStyle.whitelist = sizeWhitelist;
+            Quill.register(SizeStyle, true);
+
+            // 2. 初始化 Quill 編輯器
+            const quill = new Quill('#term-editor-container', {
+                theme: 'snow',
+                modules: {
+                    toolbar: {
+                        container: [
+                            ['bold', 'underline', 'strike'],
+                            [{ 'size': [false, '20px', '24px', '32px', '40px'] }],
+                            // 【關鍵加入】：在這裡補上了有序列表 (ordered) 與無序列表 (bullet) 按鈕
+                            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                            [{ 'color': [] }, { 'background': [] }],
+                            ['furigana', 'clean']
+                        ],
+                        handlers: {
+                            'furigana': function() {
+                                const range = quill.getSelection();
+                                if (range) {
+                                    if (range.length > 0) {
+                                        quill.insertText(range.index + range.length, ']');
+                                        quill.insertText(range.index, '[');
+                                        quill.setSelection(range.index + range.length + 2);
+                                    } else {
+                                        quill.insertText(range.index, '[]');
+                                        quill.setSelection(range.index + 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 設定自訂功能按鈕文字與圖標
+            document.querySelector('.ql-furigana').innerHTML = '讀';
+            document.querySelector('.ql-clean').innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4 6H16M10 6V18" stroke="#444444" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M14 14L19 19M19 14L14 19" stroke="#dc3545" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            `;
+
+            // 3. 監聽選取範圍：同步字級大小顯示
+            quill.on('selection-change', function(range) {
+                if (range) {
+                    const format = quill.getFormat(range);
+                    const sizePickerLabel = document.querySelector('.ql-size .ql-picker-label');
+                    if (format.size) {
+                        sizePickerLabel.setAttribute('data-value', format.size);
+                    } else {
+                        sizePickerLabel.removeAttribute('data-value');
+                    }
+                }
+            });
+
+            // 4. 文法模式快捷鍵事件連動
+            const shortcutGroup = document.getElementById('grammar-shortcuts');
+            if (shortcutGroup) {
+                shortcutGroup.addEventListener('click', function (e) {
+                    if (e.target.classList.contains('dropdown-item')) {
+                        e.preventDefault();
+                        const insertValue = e.target.getAttribute('data-pos');
+                        quill.focus();
+                        const range = quill.getSelection(true);
+                        if (range) {
+                            quill.insertText(range.index, insertValue, 'user');
+                            quill.setSelection(range.index + insertValue.length);
+                        }
+                    }
+                });
+            }
+
+            // 5. 表單安全驗證與提交前置同步 (包含所有輸入框自動去除前後空白/空行機制)
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function (e) {
+                const hiddenInput = document.getElementById('term-hidden');
+                
+                // 【A】處理 Quill 編輯器內容 (富文本 HTML 格式)
+                let htmlContent = quill.root.innerHTML;
+                // 去除前後空段落、純換行與多餘 HTML 空白
+                htmlContent = htmlContent.replace(/^(?:\s|<p>\s*<br>\s*<\/p>|<p>&nbsp;<\/p>|<p>\s*<\/p>)+/gi, '');
+                htmlContent = htmlContent.replace(/(?:\s|<p>\s*<br>\s*<\/p>|<p>&nbsp;<\/p>|<p>\s*<\/p>)+$/gi, '');
+                // 去除段落內部文字的首尾空格
+                htmlContent = htmlContent.replace(/<p>(?:\s|&nbsp;)+/gi, '<p>').replace(/(?:\s|&nbsp;)+<\/p>/gi, '</p>');
+                
+                // 【B】加強處理：其餘所有輸入框
+                const explanationInput = document.getElementById('explanation');
+                const exampleInput = document.getElementById('example_sentence');
+                const newCatInput = document.getElementById('new_categories');
+                
+                if (explanationInput) explanationInput.value = explanationInput.value.trim();
+                if (exampleInput) exampleInput.value = exampleInput.value.trim();
+                if (newCatInput) newCatInput.value = newCatInput.value.trim();
+                
+                const text = quill.getText().trim();
+                
+                if (text.length === 0 || htmlContent.trim() === '') {
+                    e.preventDefault();
+                    alert('請輸入內容！');
+                } else {
+                    // 將清理乾淨後的完美 HTML 傳給後端
+                    hiddenInput.value = htmlContent;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

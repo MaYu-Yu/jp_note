@@ -24,20 +24,21 @@
         .flashcard {
             width: 95%;
             max-width: 900px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            border-radius: 0.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border-radius: 1rem;
             min-height: 450px;
             display: flex;
             flex-direction: column;
+            border: 1px solid #e2e8f0;
         }
 
         .card-header-main {
             padding: 1.5rem 2rem;
-            background-color: #d6eaff;
-            border-bottom: 2px solid #007bff;
-            border-radius: 0.5rem 0.5rem 0 0;
+            background-color: #e0f2fe;
+            border-bottom: 1px solid #bae6fd;
+            border-radius: 1rem 1rem 0 0;
             font-size: 1.2rem;
-            color: #007bff;
+            color: #0369a1;
             font-weight: bold;
             cursor: pointer;
         }
@@ -47,26 +48,31 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 2rem;
+            padding: 2.5rem;
             text-align: center;
         }
 
+        /* 【核心修正】完全取消原本預設的字型、大小、顏色覆蓋，完整釋放並保留您編輯區的 HTML 樣式 */
         .term-text {
-            font-size: 3rem;
-            font-weight: bold;
-            color: #007bff;
             margin: 0;
-            line-height: 1.3;
+            line-height: 1.4;
             word-break: break-word;
             text-align: left;
+        }
+
+        /* 修正內建 <p> 標籤，防止排版錯位 */
+        #card-explanation p,
+        #card-example p {
+            display: inline-block !important;
+            margin: 0 !important;
         }
 
         .term-line {
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid #ddd;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #edf2f7;
             padding-bottom: 1.5rem;
             cursor: pointer;
             min-height: 100px;
@@ -75,63 +81,80 @@
         .explanation-line,
         .example-line {
             text-align: left;
+            margin-bottom: 1.75rem;
         }
 
         .pos-badge,
         .tts-button {
-            margin-left: 10px;
+            margin-left: 12px;
         }
 
         .pos-badge {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
+            padding: 0.4em 0.8em;
+            border-radius: 0.5rem;
         }
 
         .tts-button {
             cursor: pointer;
-            color: #28a745;
-            font-size: 1.5em;
-            vertical-align: top;
-            transition: color 0.2s;
+            color: #10b981;
+            font-size: 1.4em;
+            vertical-align: middle;
+            transition: transform 0.1s ease, color 0.2s;
+            display: inline-block;
         }
 
         .tts-button:hover {
-            color: #1e7e34;
+            color: #059669;
+            transform: scale(1.15);
         }
 
-        .explanation-line {
-            margin-bottom: 1.5rem;
-        }
-
+        /* 重新設計的小標題結構 */
         .content-label {
-            font-weight: bold;
-            color: #6c757d;
-            margin-bottom: 0.25rem;
-            font-size: 1.1rem;
-            text-align: left;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 0.6rem;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
         }
 
         .content-text {
-            margin-bottom: 1rem;
-            font-size: 1.1rem;
-            line-height: 1.6;
+            font-size: 1.15rem;
+            line-height: 1.7;
             text-align: left;
         }
 
+        /* 【全新精緻版面】解釋/中文意思 區塊樣式 */
         .explanation-style {
-            color: #343a40;
-            padding: 10px;
-            background-color: #e9f5ff;
-            border-left: 4px solid #007bff;
-            border-radius: 4px;
+            color: #1e293b;
+            padding: 1.25rem 1.5rem;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid #3b82f6; /* 質感藍提示條 */
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
         }
 
+        /* 【全新精緻版面】例句區塊樣式 (含現代滑鼠懸停 Hover 浮起特效) */
         .example-style {
-            color: #343a40;
-            padding: 10px;
-            background-color: #f7f7f7;
-            border-left: 4px solid #28a745;
-            border-radius: 4px;
+            color: #334155;
+            padding: 1.25rem 1.5rem;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid #10b981; /* 翡翠綠提示條 */
+            border-radius: 0.75rem;
             cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .example-style:hover {
+            background-color: #f8fafc; /* 懸停時微亮 */
+            transform: translateY(-2px); /* 輕微向上浮起 */
+            border-color: #cbd5e1;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -2px rgba(0, 0, 0, 0.02); /* 陰影加深呈現立體感 */
         }
 
         .control-row-nav-internal {
@@ -139,14 +162,17 @@
             width: 100%;
             justify-content: space-between;
             gap: 15px;
-            padding-top: 1rem;
-            border-top: 1px solid #ddd;
+            padding-top: 1.5rem;
+            border-top: 1px solid #edf2f7;
             margin-top: auto;
         }
 
         .control-row-nav-internal .btn-lg {
             flex-grow: 1;
             max-width: 48%;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 1.1rem;
         }
 
         .control-row-main {
@@ -190,7 +216,7 @@
 
                             <div class="term-line" id="term-line-clickable" aria-expanded="false"
                                 aria-controls="explanation-content">
-                                <h2 class="term-text" id="card-term"></h2>
+                                <h2 class="term-text" id="card-term">
                                 <span id="card-pos" class="pos-badge badge bg-primary"></span>
                                 <span class="tts-button" id="term-tts-btn">🔊</span>
                                 <span id="card-type-info" class="ms-auto text-secondary small"></span>
@@ -198,12 +224,12 @@
 
                             <div class="collapse" id="explanation-content">
                                 <div class="explanation-line">
-                                    <p class="content-label">解釋/中文意思:</p>
+                                    <p class="content-label">解釋 / 中文意思</p>
                                     <p class="content-text explanation-style" id="card-explanation"></p>
                                 </div>
 
                                 <div class="example-line">
-                                    <p class="content-label">例句 (點擊可翻譯):
+                                    <p class="content-label">例句 (點擊區塊可開啟翻譯)
                                         <span class="tts-button" id="example-tts-btn">🔊</span>
                                     </p>
                                     <p class="content-text example-style" id="card-example"
@@ -266,8 +292,7 @@
         let cardCache = [];
         let currentBatchStart = 0;
 
-        // --- 核心修復變數 ---
-        let currentSpeakId = 0; // 唯一序列鎖，防止語音重疊
+        let currentSpeakId = 0; 
         let autoPlayTimeout = null;
         const SESSION_KEY = 'flashcard_autoplay_enabled';
         const INTERVAL_KEY = 'flashcard_autoplay_interval';
@@ -291,22 +316,20 @@
 
         function stopAutoPlayLoop(updateButton = true) {
             resetSequence();
-            sessionStorage.removeItem(SESSION_KEY); // 清除狀態
+            sessionStorage.removeItem(SESSION_KEY); 
             if (intervalSelect) intervalSelect.disabled = false;
             if (updateButton && playPauseBtn) {
                 playPauseBtn.innerHTML = '▶️ 自動播放';
                 playPauseBtn.classList.remove('btn-danger');
-                playPauseBtn.classList.add('btn-primary'); // 回歸藍色
+                playPauseBtn.classList.add('btn-primary'); 
             }
         }
 
         function getGoogleVoice(lang) {
             const voices = window.speechSynthesis.getVoices();
             if (lang === 'ja-JP') {
-                // 優先尋找 Google 日本語，若找不到則退而求其次找任何日文語音
                 return voices.find(v => v.name === 'Google 日本語') || voices.find(v => v.lang === 'ja-JP');
             } else {
-                // 優先尋找 Google 國語（臺灣），若找不到則退而求其次找任何台灣中文語音
                 return voices.find(v => v.name === 'Google 國語（臺灣）') || voices.find(v => v.lang.includes('zh-TW'));
             }
         }
@@ -316,28 +339,71 @@
                 callback(); return;
             }
 
-            const thisId = currentSpeakId; // 記錄發起時的 ID
+            const thisId = currentSpeakId; 
             let textToSpeak = filterParentheses(text.trim());
 
+            textToSpeak = textToSpeak.replace(/<[^>]*>/g, '').trim();
+
+            let itemsToSpeak = [];
+
             if (lang === 'ja-JP') {
-                const match = textToSpeak.match(/\[([^\]]+)\]/);
-                textToSpeak = (match && match[1]) ? match[1].trim() : textToSpeak.split('+')[0].trim();
+                const regex = /\[([^\]]+)\]/g;
+                let match;
+                while ((match = regex.exec(textToSpeak)) !== null) {
+                    itemsToSpeak.push(match[1].trim());
+                }
+                
+                if (itemsToSpeak.length === 0) {
+                    itemsToSpeak.push(textToSpeak.split('+')[0].trim());
+                }
+            } else {
+                itemsToSpeak.push(textToSpeak);
             }
 
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            itemsToSpeak = itemsToSpeak.filter(item => item !== '');
 
-            // 設定語言
-            utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
-
-            // --- 核心修改：設定指定的 Google 語音 ---
-            const selectedVoice = getGoogleVoice(utterance.lang);
-            if (selectedVoice) {
-                utterance.voice = selectedVoice;
+            if (itemsToSpeak.length === 0) {
+                callback();
+                return;
             }
 
-            utterance.onend = () => { if (thisId === currentSpeakId) callback(); };
-            utterance.onerror = () => { if (thisId === currentSpeakId) callback(); };
-            window.speechSynthesis.speak(utterance);
+            function speakQueue(index) {
+                if (thisId !== currentSpeakId) return;
+
+                if (index >= itemsToSpeak.length) {
+                    callback();
+                    return;
+                }
+
+                const utterance = new SpeechSynthesisUtterance(itemsToSpeak[index]);
+                utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
+
+                const selectedVoice = getGoogleVoice(utterance.lang);
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                }
+
+                utterance.onend = () => {
+                    if (thisId !== currentSpeakId) return;
+
+                    if (index + 1 < itemsToSpeak.length) {
+                        autoPlayTimeout = setTimeout(() => {
+                            speakQueue(index + 1);
+                        }, 500);
+                    } else {
+                        speakQueue(index + 1);
+                    }
+                };
+
+                utterance.onerror = () => {
+                    if (thisId !== currentSpeakId) return;
+                    speakQueue(index + 1);
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }
+
+            speakQueue(0);
         }
 
         function speakFullAnswer(callback = () => { }) {
@@ -350,7 +416,6 @@
                     if (thisId !== currentSpeakId) return;
                     speakText(currentCardData.example_sentence || "", 'ja-JP', () => {
                         if (thisId !== currentSpeakId) return;
-                        // 例句唸第二次
                         speakText(currentCardData.example_sentence || "", 'ja-JP', () => {
                             if (thisId === currentSpeakId) callback();
                         });
@@ -359,15 +424,13 @@
             });
         }
 
-        // 重唸答案按鈕
         function speakFullAnswerWithCancel() {
-            resetSequence(); // 重唸答案不會關閉自動播放，只會重新開始這筆的語音鏈
+            resetSequence(); 
             if (!contentCollapse.classList.contains('show')) new bootstrap.Collapse(contentCollapse, { toggle: true });
             nextButton.textContent = '下一張 →';
             setTimeout(() => {
                 speakFullAnswer(() => {
                     if (sessionStorage.getItem(SESSION_KEY) === 'true') {
-                        // 唸完後如果是自動播放，過一個間隔後跳下一張
                         const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 3000;
                         autoPlayTimeout = setTimeout(() => navigateCard(1), interval);
                     }
@@ -394,7 +457,9 @@
             currentCardData = card;
             indexDisplay.textContent = `第 ${current_index + 1} / ${total_count} 筆`;
             jumpInput.value = current_index + 1;
-            termElement.innerHTML = card.term ? card.term.replace(/\|/g, '<br>') : 'N/A';
+            
+            termElement.innerHTML = card.term || 'N/A';
+            
             posElement.textContent = card.part_of_speech || '';
             posElement.style.display = card.part_of_speech ? 'inline-block' : 'none';
             explanationElement.innerHTML = card.explanation ? card.explanation.replace(/\n/g, '<br>') : 'N/A';
@@ -428,21 +493,18 @@
             });
         }
 
-        // 這個函式用來「打斷當前的語音與計時」，但「保留自動播放狀態」
         function resetSequence() {
-            currentSpeakId++; // 提升 ID，讓舊的 callback 失效
+            currentSpeakId++; 
             if (autoPlayTimeout) {
                 clearTimeout(autoPlayTimeout);
                 autoPlayTimeout = null;
             }
-            // 停止目前所有正在發音的語音
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
             }
         }
 
         async function navigateCard(step) {
-            // 如果原本在自動播放，resetSequence 會處理語音，但保留 SESSION_KEY 使其續播
             resetSequence();
             await navigateToNewIndex((current_index + step + total_count) % total_count);
         }
@@ -450,21 +512,18 @@
         async function handleNextClick() {
             if (!currentCardData) return;
 
-            const thisId = ++currentSpeakId; // 手動點擊時立刻更新 ID，阻斷之前的自動鏈條
+            const thisId = ++currentSpeakId;
 
             if (!contentCollapse.classList.contains('show')) {
-                // 原本 resetSequence() 放在這裡也可以，但要確保 logic 順序
                 if (autoPlayTimeout) clearTimeout(autoPlayTimeout);
                 window.speechSynthesis.cancel();
 
                 new bootstrap.Collapse(contentCollapse, { toggle: true });
                 nextButton.textContent = '下一張 →';
 
-                // 延遲一點點確保 Collapse 動畫不會影響語音
                 setTimeout(() => {
                     if (thisId !== currentSpeakId) return;
                     speakFullAnswer(() => {
-                        // 如果是自動播放模式，唸完答案後重新啟動「等待下一張」的計時
                         if (sessionStorage.getItem(SESSION_KEY) === 'true' && thisId === currentSpeakId) {
                             const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 3000;
                             autoPlayTimeout = setTimeout(() => navigateCard(1), interval);
@@ -485,22 +544,18 @@
         }
 
         function autoPlayWaitAndShowAnswer() {
-            // 如果中途停止了自動播放，直接退出
             if (sessionStorage.getItem(SESSION_KEY) !== 'true') return;
 
             const interval = parseInt(sessionStorage.getItem(INTERVAL_KEY)) || 3000;
-            const thisId = currentSpeakId; // 閉包鎖定當前 ID
+            const thisId = currentSpeakId;
 
             autoPlayTimeout = setTimeout(() => {
-                // 檢查：如果 ID 已變更（表示手動按了下一張），則不執行舊的翻面動作
                 if (thisId !== currentSpeakId) return;
 
-                // 翻開答案面
                 if (!contentCollapse.classList.contains('show')) {
                     new bootstrap.Collapse(contentCollapse, { toggle: true });
                 }
 
-                // 唸完內容後，再次檢查 ID 才進入下一張
                 speakFullAnswer(() => {
                     if (thisId !== currentSpeakId || sessionStorage.getItem(SESSION_KEY) !== 'true') return;
 
@@ -521,7 +576,6 @@
                 sessionStorage.setItem(INTERVAL_KEY, intervalSelect.value);
                 sessionStorage.setItem(SESSION_KEY, 'true');
 
-                // 變更為暫停狀態（紅色）
                 playPauseBtn.innerHTML = '⏸️ 暫停播放';
                 playPauseBtn.classList.remove('btn-primary');
                 playPauseBtn.classList.add('btn-danger');
@@ -536,17 +590,14 @@
             }
         }
 
-
         document.getElementById('flashcard-header').addEventListener('click', () => {
             stopAutoPlayLoop(true);
         });
 
         document.addEventListener('DOMContentLoaded', async () => {
-            // --- 狀態重置：確保每次重開網頁或重新整理時，都回歸預設手動模式 ---
-            sessionStorage.removeItem(SESSION_KEY); // 移除自動播放狀態
-            window.speechSynthesis.cancel(); // 停止任何殘留語音
+            sessionStorage.removeItem(SESSION_KEY);
+            window.speechSynthesis.cancel();
             window.speechSynthesis.getVoices();
-            // 確保按鈕視覺回歸預設（藍色，顯示自動播放）
             if (playPauseBtn) {
                 playPauseBtn.innerHTML = '▶️ 自動播放';
                 playPauseBtn.classList.remove('btn-danger');
@@ -556,47 +607,34 @@
                 intervalSelect.disabled = false;
             }
 
-            // --- 初始資料載入 ---
             const startBatch = Math.floor(current_index / BATCH_SIZE) * BATCH_SIZE;
             await fetchAndCacheBatch(startBatch);
 
             const initialCard = cardCache[current_index - currentBatchStart];
             if (initialCard) {
-                // 載入第一筆，並根據先前設定自動唸出單字（不觸發續播鏈）
                 renderCard(initialCard, true);
             }
 
-            // --- 事件監聽器掛載 ---
-
-            // 單字行點擊：處理翻面或下一張
             document.getElementById('term-line-clickable').addEventListener('click', (e) => {
-                // 1. 如果點到的是小喇叭按鈕，只播聲音，不翻面
                 if (e.target.classList.contains('tts-button')) return;
-
-                // 2. 如果目前在自動播放，先停止它，避免邏輯打架
                 if (sessionStorage.getItem('flashcard_autoplay_enabled') === 'true') {
                     stopAutoPlayLoop(true);
                 }
-
-                // 3. 執行翻面或下一張的邏輯
                 handleNextClick();
             });
 
-            // 單字語音按鈕
             document.getElementById('term-tts-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                stopAutoPlayLoop(true); // 使用 stop 而不僅是 reset，確保狀態同步
+                stopAutoPlayLoop(true);
                 speakText(currentCardData.term, 'ja-JP');
             });
 
-            // 例句語音按鈕
             document.getElementById('example-tts-btn').addEventListener('click', (e) => {
                 e.stopPropagation();
-                stopAutoPlayLoop(true); // 使用 stop，避免唸完後卡死
+                stopAutoPlayLoop(true);
                 speakText(currentCardData.example_sentence, 'ja-JP');
             });
 
-            // 監聽解釋展開狀態，同步更新「下一張」按鈕文字
             contentCollapse.addEventListener('shown.bs.collapse', () => {
                 nextButton.textContent = '下一張 →';
             });
