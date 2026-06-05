@@ -249,7 +249,7 @@
                 </div>
                 <div class="control-row-main mt-4">
                     <div class="control-row-center">
-                        <button onclick="history.back()" class="btn btn-secondary">← 返回上頁</button>
+                        <a href="{{ url_for('flashcard_select') }}" class="btn btn-secondary">← 返回設定</a>
                         <a href="{{ url_for('home') }}" class="btn btn-secondary">🏠 返回首頁</a>
                         <div class="autoplay-controls d-flex flex-nowrap align-items-center">
                             <select id="interval-select" class="form-select w-auto me-2">
