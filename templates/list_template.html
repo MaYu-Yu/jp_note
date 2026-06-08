@@ -20,7 +20,7 @@
             word-break: break-word;
         }
 
-        /* 【核心優化】：強制將 Quill 產生的內建 <p> 標籤改為行內元素，防止播放按鈕被擠到下一行 */
+        /* 強制將 Quill 產生的內建 <p> 標籤改為行內元素，防止播放按鈕被擠到下一行 */
         .term-text p {
             display: inline !important;
             margin: 0 !important;
@@ -51,13 +51,13 @@
         }
 
         /* 輸入提示字樣式 */
-        input[type="search"]::placeholder,
-        input[type="search"]::-webkit-input-placeholder {
+        input[type="text"]::placeholder,
+        input[type="text"]::-webkit-input-placeholder {
             color: rgba(68, 68, 68, 0.3);
         }
 
-        input[type="search"]::-moz-placeholder,
-        input[type="search"]:-moz-placeholder {
+        input[type="text"]::-moz-placeholder,
+        input[type="text"]:-moz-placeholder {
             color: rgba(68, 68, 68, 0.3);
             opacity: 1;
         }
@@ -97,7 +97,7 @@
             <input type="hidden" name="sort_order" value="{{ sort_order }}">
 
             <div class="input-group" style="max-width: 350px;">
-                <input type="search" class="form-control" placeholder="由單字,文法,例句搜尋" name="search"
+                <input type="text" class="form-control" placeholder="由單字,文法,例句搜尋" name="search"
                     value="{{ search_term if search_term else '' }}" aria-label="搜尋">
                 <button class="btn btn-outline-secondary" type="submit">🔍 搜尋</button>
                 {% if search_term or pos_filter or current_category %}
