@@ -389,7 +389,7 @@
                     if (index + 1 < itemsToSpeak.length) {
                         autoPlayTimeout = setTimeout(() => {
                             speakQueue(index + 1);
-                        }, 500);
+                        }, 10);
                     } else {
                         speakQueue(index + 1);
                     }

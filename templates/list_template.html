@@ -369,26 +369,39 @@
             }
         }
 
-        function speakText(text, lang = 'ja-JP') {
+        async function speakText(text, lang = 'ja-JP') {
             if (!('speechSynthesis' in window) || !text) return;
-            window.speechSynthesis.cancel();
+            window.speechSynthesis.cancel(); // 停止目前播放
             currentSpeakId++;
 
-            let textToSpeak = text.replace(/<[^>]*>/g, '').trim();
-            const match = textToSpeak.match(/\[([^\]]+)\]/);
-            if (match && match[1]) {
-                textToSpeak = match[1].trim();
-            } else {
-                textToSpeak = textToSpeak.split('+')[0].trim();
-            }
-            textToSpeak = filterParentheses(textToSpeak);
+            // 1. 移除 HTML 標籤
+            let cleanText = text.replace(/<[^>]*>/g, '').trim();
 
-            if (textToSpeak) {
-                const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
-                const selectedVoice = getGoogleVoice(utterance.lang);
-                if (selectedVoice) utterance.voice = selectedVoice;
-                window.speechSynthesis.speak(utterance);
+            // 2. 找出所有被 [] 框住的內容
+            const matches = cleanText.match(/\[([^\]]+)\]/g);
+
+            // 如果沒有 []，則直接念整行；若有，則念出所有 [] 內的內容
+            const listToSpeak = matches ? matches.map(m => m.replace(/[\[\]]/g, '')) : [cleanText];
+
+            // 3. 定義一個輔助函式來播放單一語句並等待它結束
+            const speakSegment = (segment) => {
+                return new Promise((resolve) => {
+                    const utterance = new SpeechSynthesisUtterance(segment);
+                    utterance.lang = (lang === 'zh-TW') ? 'zh-TW' : 'ja-JP';
+                    const selectedVoice = getGoogleVoice(utterance.lang);
+                    if (selectedVoice) utterance.voice = selectedVoice;
+
+                    utterance.onend = () => {
+                        // 語句結束後，增加10ms 的延遲再繼續下一個
+                        setTimeout(resolve, 10);
+                    };
+                    window.speechSynthesis.speak(utterance);
+                });
+            };
+
+            // 4. 使用 for...of 迴圈確保依序播放
+            for (const segment of listToSpeak) {
+                await speakSegment(segment);
             }
         }
 
